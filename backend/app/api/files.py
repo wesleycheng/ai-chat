@@ -1,174 +1,223 @@
-"""文件上传 API"""
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
-from uuid import UUID, uuid4
 import os
+import uuid
+from datetime import datetime
+from typing import List, Optional
+
 import aiofiles
-import magic
+import filetype
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core import get_db, settings
-from ..models import User, File
-from ..schemas import FileResponse, SuccessResponse
-from .auth import get_current_user
+from ..core.database import get_db
+from ..core.security import get_current_user
+from ..models.models import File as DBFile, FileStatus, User
+from ..schemas.schemas import FileCreate, FileResponse, FileListResponse
 
-router = APIRouter(prefix="/files", tags=["文件"])
+router = APIRouter(prefix="/files", tags=["files"])
 
-
-def get_file_extension(filename: str) -> str:
-    """获取文件扩展名"""
-    return os.path.splitext(filename)[1].lower()
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".txt", ".md", ".jpg", ".jpeg", ".png"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-def validate_file(file: UploadFile) -> tuple[bool, str]:
-    """验证文件"""
-    # 检查扩展名
-    ext = get_file_extension(file.filename or "")
-    if ext not in settings.ALLOWED_EXTENSIONS:
-        return False, f"不支持的文件类型: {ext}"
+async def validate_file(file: UploadFile) -> None:
+    """验证文件类型和大小"""
+    # 检查文件大小
+    contents = await file.read(MAX_FILE_SIZE)
+    await file.seek(0)
     
-    return True, ""
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"文件大小超过 {MAX_FILE_SIZE / 1024 / 1024}MB 限制")
+    
+    # 检查文件类型
+    kind = filetype.guess(contents)
+    if kind is None or f".{kind.extension}" not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="不支持的文件类型")
+    
+    return kind
 
 
-@router.post("/upload", response_model=FileResponse, status_code=201)
+async def parse_file_content(file_path: str, extension: str) -> Optional[str]:
+    """解析文件内容为纯文本"""
+    ext = extension.lower()
+    
+    try:
+        if ext == ".pdf":
+            return await parse_pdf(file_path)
+        elif ext in [".docx", ".doc"]:
+            return await parse_docx(file_path)
+        elif ext in [".xlsx", ".xls"]:
+            return await parse_xlsx(file_path)
+        elif ext in [".txt", ".md"]:
+            async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+                return await f.read()
+        elif ext in [".jpg", ".jpeg", ".png"]:
+            return "[图片文件]"  # 图片需要 OCR 处理
+    except Exception as e:
+        return f"[解析失败: {str(e)}]"
+    
+    return None
+
+
+async def parse_pdf(file_path: str) -> str:
+    """解析 PDF"""
+    import pymupdf
+    text_parts = []
+    with pymupdf.open(file_path) as doc:
+        for page in doc:
+            text_parts.append(page.get_text())
+    return "\n".join(text_parts)
+
+
+async def parse_docx(file_path: str) -> str:
+    """解析 DOCX"""
+    from docx import Document
+    doc = Document(file_path)
+    return "\n".join([p.text for p in doc.paragraphs])
+
+
+async def parse_xlsx(file_path: str) -> str:
+    """解析 XLSX"""
+    from openpyxl import load_workbook
+    wb = load_workbook(file_path, read_only=True)
+    parts = []
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            if any(row):
+                parts.append(" | ".join([str(cell) if cell else "" for cell in row]))
+    return "\n".join(parts)
+
+
+@router.post("/upload", response_model=FileResponse)
 async def upload_file(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """上传文件"""
     # 验证文件
-    is_valid, error_msg = validate_file(file)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=error_msg)
+    try:
+        kind = await validate_file(file)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
-    # 读取文件内容检查大小
-    content = await file.read()
-    if len(content) > settings.MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"文件大小超过限制 ({settings.MAX_FILE_SIZE // 1024 // 1024}MB)"
-        )
+    # 生成文件路径
+    file_ext = f".{kind.extension}"
+    file_id = str(uuid.uuid4())
+    file_path = os.path.join(
+        os.getenv("UPLOAD_DIR", "./uploads"),
+        f"{file_id}{file_ext}"
+    )
     
-    # 检测真实 MIME 类型
-    mime_type = magic.from_buffer(content, mime=True)
-    
-    # 生成存储路径
-    file_id = uuid4()
-    ext = get_file_extension(file.filename or "")
-    storage_name = f"{file_id}{ext}"
-    storage_path = os.path.join(settings.UPLOAD_DIR, storage_name)
-    
-    # 确保上传目录存在
-    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    # 确保目录存在
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     
     # 保存文件
-    async with aiofiles.open(storage_path, "wb") as f:
-        await f.write(content)
+    contents = await file.read()
+    async with aiofiles.open(file_path, "wb") as f:
+        await f.write(contents)
     
     # 创建数据库记录
-    file_record = File(
+    db_file = DBFile(
         id=file_id,
         user_id=current_user.id,
         filename=file.filename,
-        file_path=storage_path,
-        file_size=len(content),
-        mime_type=mime_type,
-        parse_status="pending",
+        file_ext=file_ext,
+        file_size=len(contents),
+        file_path=file_path,
+        parse_status=FileStatus.PENDING,
     )
-    db.add(file_record)
+    db.add(db_file)
     await db.commit()
-    await db.refresh(file_record)
+    await db.refresh(db_file)
     
-    # TODO: 触发异步解析任务
+    # TODO: 提交异步任务解析文件内容
+    # await file_parse_task.delay(file_id)
     
-    return file_record
+    return db_file
 
 
-@router.get("", response_model=List[FileResponse])
+@router.get("", response_model=FileListResponse)
 async def list_files(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-    current_user: User = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 20,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """获取文件列表"""
-    result = await db.execute(
-        select(File)
-        .where(File.user_id == current_user.id)
-        .order_by(File.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    return result.scalars().all()
+    stmt = select(DBFile).where(DBFile.user_id == current_user.id).order_by(DBFile.created_at.desc())
+    stmt = stmt.offset(skip).limit(limit)
+    result = await db.execute(stmt)
+    files = result.scalars().all()
+    
+    count_stmt = select(DBFile).where(DBFile.user_id == current_user.id)
+    count_result = await db.execute(count_stmt)
+    total = len(count_result.scalars().all())
+    
+    return {"items": files, "total": total}
 
 
 @router.get("/{file_id}", response_model=FileResponse)
 async def get_file(
-    file_id: UUID,
-    current_user: User = Depends(get_current_user),
+    file_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """获取文件详情"""
-    result = await db.execute(
-        select(File).where(
-            File.id == file_id,
-            File.user_id == current_user.id,
-        )
-    )
+    stmt = select(DBFile).where(DBFile.id == file_id, DBFile.user_id == current_user.id)
+    result = await db.execute(stmt)
     file = result.scalar_one_or_none()
+    
     if not file:
         raise HTTPException(status_code=404, detail="文件不存在")
+    
     return file
 
 
 @router.get("/{file_id}/status")
 async def get_file_status(
-    file_id: UUID,
-    current_user: User = Depends(get_current_user),
+    file_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """获取文件解析状态"""
-    result = await db.execute(
-        select(File).where(
-            File.id == file_id,
-            File.user_id == current_user.id,
-        )
-    )
+    stmt = select(DBFile).where(DBFile.id == file_id, DBFile.user_id == current_user.id)
+    result = await db.execute(stmt)
     file = result.scalar_one_or_none()
+    
     if not file:
         raise HTTPException(status_code=404, detail="文件不存在")
     
     return {
-        "file_id": file.id,
-        "status": file.parse_status,
-        "chunk_count": file.chunk_count,
-        "error_message": file.error_message,
+        "id": file.id,
+        "filename": file.filename,
+        "parse_status": file.parse_status.value,
+        "parse_error": file.parse_error,
     }
 
 
-@router.delete("/{file_id}", status_code=204)
+@router.delete("/{file_id}")
 async def delete_file(
-    file_id: UUID,
-    current_user: User = Depends(get_current_user),
+    file_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """删除文件"""
-    result = await db.execute(
-        select(File).where(
-            File.id == file_id,
-            File.user_id == current_user.id,
-        )
-    )
+    stmt = select(DBFile).where(DBFile.id == file_id, DBFile.user_id == current_user.id)
+    result = await db.execute(stmt)
     file = result.scalar_one_or_none()
+    
     if not file:
         raise HTTPException(status_code=404, detail="文件不存在")
     
     # 删除物理文件
-    if os.path.exists(file.file_path):
+    if file.file_path and os.path.exists(file.file_path):
         os.remove(file.file_path)
     
     # 删除数据库记录
     await db.delete(file)
     await db.commit()
+    
+    return {"message": "删除成功"}

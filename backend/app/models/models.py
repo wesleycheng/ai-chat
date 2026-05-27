@@ -1,141 +1,155 @@
-"""数据库 ORM 模型"""
 from datetime import datetime
-from uuid import UUID, uuid4
-from sqlalchemy import Column, String, Text, Boolean, Integer, BigInteger, Numeric, DateTime, ForeignKey, ARRAY, JSON
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import Column, String, Text, Boolean, DateTime, Integer, ForeignKey, Float, JSON, Enum as SQLEnum
 from sqlalchemy.orm import relationship
+import enum
+
 from ..core.database import Base
 
 
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+    GUEST = "guest"
+
+
+class FileStatus(str, enum.Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class User(Base):
-    """用户表"""
     __tablename__ = "users"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    username = Column(String(64), unique=True, nullable=False, index=True)
+
+    id = Column(String(36), primary_key=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(Text, nullable=False)
-    role = Column(String(20), default="user")  # admin | user
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(SQLEnum(UserRole), default=UserRole.USER)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # 关系
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     files = relationship("File", back_populates="user", cascade="all, delete-orphan")
-    agents = relationship("Agent", back_populates="creator", cascade="all, delete-orphan")
-    model_configs = relationship("ModelConfig", back_populates="creator", cascade="all, delete-orphan")
+    agents = relationship("Agent", back_populates="user", cascade="all, delete-orphan")
+
+
+class ModelProvider(str, enum.Enum):
+    DEEPSEEK = "deepseek"
+    OPENAI = "openai"
+    OLLAMA = "ollama"
+    ANTHROPIC = "anthropic"
+    CUSTOM = "custom"
 
 
 class ModelConfig(Base):
-    """模型配置表"""
     __tablename__ = "model_configs"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name = Column(String(128), nullable=False)
-    provider = Column(String(32), nullable=False)  # deepseek | openai | ollama | custom
-    api_base = Column(Text, nullable=False)
-    api_key_enc = Column(Text, nullable=False)  # 加密存储
-    model_name = Column(String(128), nullable=False)
-    params = Column(JSON, default=dict)  # temperature, max_tokens 等
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    provider = Column(SQLEnum(ModelProvider), nullable=False)
+    api_base = Column(String(255), nullable=False)
+    encrypted_api_key = Column(Text, nullable=False)
+    model_name = Column(String(100), nullable=False)
+    params = Column(JSON, default=dict)
     is_default = Column(Boolean, default=False)
-    is_enabled = Column(Boolean, default=True)
-    created_by = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # 关系
-    creator = relationship("User", back_populates="model_configs")
-    conversations = relationship("Conversation", back_populates="model")
-    agents = relationship("Agent", back_populates="model")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Conversation(Base):
-    """会话表"""
     __tablename__ = "conversations"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    agent_id = Column(PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True)
-    title = Column(String(256), nullable=True)
-    model_id = Column(PG_UUID(as_uuid=True), ForeignKey("model_configs.id", ondelete="SET NULL"), nullable=True)
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    title = Column(String(255))
+    model_id = Column(String(36), ForeignKey("model_configs.id"))
+    agent_id = Column(String(36), ForeignKey("agents.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # 关系
+
+    # Relationships
     user = relationship("User", back_populates="conversations")
-    agent = relationship("Agent", back_populates="conversations")
-    model = relationship("ModelConfig", back_populates="conversations")
-    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan", order_by="Message.created_at")
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
 
 
 class Message(Base):
-    """消息表"""
     __tablename__ = "messages"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    conversation_id = Column(PG_UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    role = Column(String(16), nullable=False)  # user | assistant | system | tool
+
+    id = Column(String(36), primary_key=True)
+    conversation_id = Column(String(36), ForeignKey("conversations.id"), nullable=False)
+    role = Column(String(20), nullable=False)  # user, assistant, system
     content = Column(Text, nullable=False)
-    token_count = Column(Integer, nullable=True)
-    metadata = Column(JSON, default=dict)  # tool_calls, file_refs 等
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    
-    # 关系
+    file_ids = Column(JSON, default=list)
+    token_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
     conversation = relationship("Conversation", back_populates="messages")
 
 
+class FileExtension(str, enum.Enum):
+    PDF = "pdf"
+    DOCX = "docx"
+    XLSX = "xlsx"
+    TXT = "txt"
+    MD = "md"
+    JPG = "jpg"
+    PNG = "png"
+
+
 class File(Base):
-    """文件表"""
     __tablename__ = "files"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    filename = Column(Text, nullable=False)
-    file_path = Column(Text, nullable=False)
-    file_size = Column(BigInteger, nullable=True)
-    mime_type = Column(String(128), nullable=True)
-    parse_status = Column(String(16), default="pending")  # pending | ready | failed
-    chunk_count = Column(Integer, default=0)
-    error_message = Column(Text, nullable=True)
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    file_ext = Column(String(20))
+    file_size = Column(Integer)
+    file_path = Column(Text)
+    parse_status = Column(SQLEnum(FileStatus), default=FileStatus.PENDING)
+    parse_error = Column(Text)
+    content_text = Column(Text)
+    embedding_id = Column(String(36))
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # 关系
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
     user = relationship("User", back_populates="files")
 
 
 class Agent(Base):
-    """Agent 表"""
     __tablename__ = "agents"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    name = Column(String(128), nullable=False)
-    description = Column(Text, nullable=True)
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
     system_prompt = Column(Text, nullable=False)
-    model_id = Column(PG_UUID(as_uuid=True), ForeignKey("model_configs.id", ondelete="SET NULL"), nullable=True)
-    tools = Column(ARRAY(Text), default=list)  # 启用的工具列表
-    kb_file_ids = Column(ARRAY(PG_UUID(as_uuid=True)), default=list)  # 关联的知识库文件
-    max_iterations = Column(Integer, default=10)
-    memory_type = Column(String(32), default="buffer")  # buffer | summary | none
-    is_public = Column(Boolean, default=False)
-    created_by = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    model_id = Column(String(36), ForeignKey("model_configs.id"))
+    tools = Column(JSON, default=list)  # ["file_search","calculator"]
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # 关系
-    creator = relationship("User", back_populates="agents")
-    model = relationship("ModelConfig", back_populates="agents")
-    conversations = relationship("Conversation", back_populates="agent")
+
+    # Relationships
+    user = relationship("User", back_populates="agents")
 
 
 class UsageStats(Base):
-    """Token 用量统计表"""
     __tablename__ = "usage_stats"
-    
-    id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id = Column(PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    conversation_id = Column(PG_UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="SET NULL"), nullable=True)
-    model_id = Column(PG_UUID(as_uuid=True), ForeignKey("model_configs.id", ondelete="SET NULL"), nullable=True)
-    agent_id = Column(PG_UUID(as_uuid=True), ForeignKey("agents.id", ondelete="SET NULL"), nullable=True)
-    prompt_tokens = Column(Integer, nullable=False, default=0)
-    completion_tokens = Column(Integer, nullable=False, default=0)
-    total_tokens = Column(Integer, nullable=False, default=0)  # 生成列在应用层计算
-    cost_cents = Column(Numeric(10, 4), default=0)  # 成本（分）
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    model_id = Column(String(36), ForeignKey("model_configs.id"))
+    conversation_id = Column(String(36), ForeignKey("conversations.id"))
+    prompt_tokens = Column(Integer, default=0)
+    completion_tokens = Column(Integer, default=0)
+    total_tokens = Column(Integer, default=0)
+    cost = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)

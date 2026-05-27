@@ -1,4 +1,5 @@
 """认证 API"""
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,9 +67,10 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     
     # 创建用户
     user = User(
+        id=str(uuid.uuid4()),
         username=data.username,
         email=data.email,
-        password_hash=hash_password(data.password),
+        hashed_password=hash_password(data.password),
         role="user",
     )
     db.add(user)
@@ -89,7 +91,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.username == data.username))
     user = result.scalar_one_or_none()
     
-    if not user or not verify_password(data.password, user.password_hash):
+    if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
