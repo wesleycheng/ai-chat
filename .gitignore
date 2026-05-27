@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# 环境变量
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 数据文件
+uploads/
+data/
+*.db
+*.sqlite
+
+# 日志
+*.log
+logs/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Node.js (前端)
+node_modules/
+.npm
+.pnpm-debug.log
+
+# 构建输出
+frontend/dist/
+frontend/build/
+
+# 测试覆盖率
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Docker
+.docker/
+
+# 临时文件
+*.tmp
+*.temp
