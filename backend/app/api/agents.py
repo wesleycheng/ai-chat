@@ -1,4 +1,5 @@
 """Agent API"""
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -38,6 +39,7 @@ async def create_agent(
 ):
     """创建 Agent"""
     agent = Agent(
+        id=str(uuid.uuid4()),
         user_id=current_user.id,
         name=data.name,
         description=data.description,

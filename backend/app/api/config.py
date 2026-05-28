@@ -1,4 +1,5 @@
 """配置管理 API"""
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -69,6 +70,7 @@ async def create_model(
             old_default.is_active = True
 
     model = ModelConfig(
+        id=str(uuid.uuid4()),
         user_id=current_user.id,
         name=data.name,
         provider=data.provider,

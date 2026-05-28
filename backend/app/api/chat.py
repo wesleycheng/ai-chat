@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
 import json
+import uuid
 
 from ..core import get_db
 from ..models import User, Conversation, Message, ModelConfig, Agent
@@ -44,6 +45,7 @@ async def create_conversation(
 ):
     """创建新会话"""
     conversation = Conversation(
+        id=str(uuid.uuid4()),
         user_id=current_user.id,
         title=data.title or "新对话",
         model_id=data.model_id,
@@ -181,6 +183,7 @@ async def chat(
 
     # 保存用户消息
     user_message = Message(
+        id=str(uuid.uuid4()),
         conversation_id=conversation_id,
         role="user",
         content=data.content,
@@ -211,6 +214,7 @@ async def chat(
 
             # 保存助手消息
             assistant_message = Message(
+                id=str(uuid.uuid4()),
                 conversation_id=conversation_id,
                 role="assistant",
                 content=full_content,
@@ -231,6 +235,7 @@ async def chat(
 
         # 保存助手消息
         assistant_message = Message(
+            id=str(uuid.uuid4()),
             conversation_id=conversation_id,
             role="assistant",
             content=content,

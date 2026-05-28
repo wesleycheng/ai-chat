@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # 数据库
-    DATABASE_URL: str = "postgresql+asyncpg://aichat:aichat@localhost:5432/aichat"
-    DATABASE_URL_SYNC: str = "postgresql://aichat:aichat@localhost:5432/aichat"
+    DATABASE_URL: str = "postgresql+asyncpg://aichat:aichat@8.137.103.202:5432/aichat"
+    DATABASE_URL_SYNC: str = "postgresql://aichat:aichat@8.137.103.202:5432/aichat"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
