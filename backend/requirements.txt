@@ -36,7 +36,7 @@ pymupdf==1.25.3
 python-docx==1.1.2
 openpyxl==3.1.5
 pillow==11.1.0
-python-magic==0.4.27
+filetype==1.2.0
 
 # 限流
 slowapi==0.1.9

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Check, X } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { configApi } from '../lib/api'
 
 export default function SettingsPage() {

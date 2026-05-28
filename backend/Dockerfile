@@ -2,9 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# 安装系统依赖
+# 安装系统依赖（libmagic-dev 提供 libmagic，filetype 库替代 python-magic）
 RUN apt-get update && apt-get install -y \
-    libmagic1 \
+    libmagic-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Python 依赖

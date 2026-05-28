@@ -13,7 +13,7 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user, logout } = useAuthStore()
-  const { currentConversationId, setCurrentConversation, streamingContent, isStreaming, addMessage } = useChatStore()
+  const { currentConversationId, setCurrentConversation, streamingContent, isStreaming } = useChatStore()
   
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -25,7 +25,7 @@ export default function ChatPage() {
   })
 
   // 获取模型列表
-  const { data: models } = useQuery({
+  useQuery({
     queryKey: ['models'],
     queryFn: () => configApi.listModels().then(r => r.data),
   })
