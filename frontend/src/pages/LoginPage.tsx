@@ -27,8 +27,12 @@ export default function LoginPage() {
       }
 
       const { access_token, refresh_token } = response.data
+      // 先把 token 写入 store，否则 getMe 请求带不上 Authorization
+      useAuthStore.setState({ token: access_token, refreshToken: refresh_token })
+      
       const meResponse = await authApi.getMe()
       
+      // 再写入完整的 user 信息
       setAuth(access_token, refresh_token, meResponse.data)
       navigate('/')
     } catch (err: any) {
