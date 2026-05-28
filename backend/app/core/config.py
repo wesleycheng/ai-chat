@@ -1,7 +1,8 @@
 """应用配置"""
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, List
 from functools import lru_cache
+import json
 
 
 class Settings(BaseSettings):
@@ -50,11 +51,20 @@ class Settings(BaseSettings):
     RATE_LIMIT_CHAT: str = "20/minute"
     
     # CORS
-    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
-    
+    CORS_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # 如果 CORS_ORIGINS 是字符串（从环境变量读入的 JSON），解析为列表
+        if isinstance(self.CORS_ORIGINS, str):
+            try:
+                self.CORS_ORIGINS = json.loads(self.CORS_ORIGINS)
+            except (json.JSONDecodeError, TypeError):
+                self.CORS_ORIGINS = [self.CORS_ORIGINS]
 
 
 @lru_cache
