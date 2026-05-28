@@ -46,9 +46,12 @@ async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     
     # 生成令牌
     token_data = {"sub": str(user.id)}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
     return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=UserResponse.model_validate(user),
     )
 
 
@@ -65,9 +68,12 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):
         )
     
     token_data = {"sub": str(user.id)}
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
     return TokenResponse(
-        access_token=create_access_token(token_data),
-        refresh_token=create_refresh_token(token_data),
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user=UserResponse.model_validate(user),
     )
 
 

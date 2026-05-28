@@ -26,14 +26,8 @@ export default function LoginPage() {
         response = await authApi.register(username, email, password)
       }
 
-      const { access_token, refresh_token } = response.data
-      // 先把 token 写入 store，否则 getMe 请求带不上 Authorization
-      useAuthStore.setState({ token: access_token, refreshToken: refresh_token })
-      
-      const meResponse = await authApi.getMe()
-      
-      // 再写入完整的 user 信息
-      setAuth(access_token, refresh_token, meResponse.data)
+      const { access_token, refresh_token, user } = response.data
+      setAuth(access_token, refresh_token, user)
       navigate('/')
     } catch (err: any) {
       setError(err.response?.data?.detail || '操作失败，请重试')
