@@ -4,9 +4,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
-from uuid import UUID
 import json
-import asyncio
 
 from ..core import get_db
 from ..models import User, Conversation, Message, ModelConfig, Agent
@@ -59,7 +57,7 @@ async def create_conversation(
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(
-    conversation_id: UUID,
+    conversation_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -78,7 +76,7 @@ async def get_conversation(
 
 @router.delete("/{conversation_id}", status_code=204)
 async def delete_conversation(
-    conversation_id: UUID,
+    conversation_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -92,14 +90,14 @@ async def delete_conversation(
     conversation = result.scalar_one_or_none()
     if not conversation:
         raise HTTPException(status_code=404, detail="会话不存在")
-    
+
     await db.delete(conversation)
     await db.commit()
 
 
 @router.get("/{conversation_id}/messages", response_model=List[MessageResponse])
 async def get_messages(
-    conversation_id: UUID,
+    conversation_id: str,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -115,7 +113,7 @@ async def get_messages(
     )
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="会话不存在")
-    
+
     result = await db.execute(
         select(Message)
         .where(Message.conversation_id == conversation_id)
@@ -128,7 +126,7 @@ async def get_messages(
 
 @router.post("/{conversation_id}/chat")
 async def chat(
-    conversation_id: UUID,
+    conversation_id: str,
     data: ChatRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -144,39 +142,53 @@ async def chat(
     conversation = result.scalar_one_or_none()
     if not conversation:
         raise HTTPException(status_code=404, detail="会话不存在")
-    
+
     # 获取模型配置
     model_id = data.model_id or conversation.model_id
     if not model_id:
         # 使用默认模型
         result = await db.execute(
-            select(ModelConfig).where(ModelConfig.is_default == True, ModelConfig.is_enabled == True)
+            select(ModelConfig).where(
+                ModelConfig.user_id == current_user.id,
+                ModelConfig.is_default == True,
+                ModelConfig.is_active == True,
+            )
         )
         model = result.scalar_one_or_none()
     else:
-        result = await db.execute(select(ModelConfig).where(ModelConfig.id == model_id))
+        result = await db.execute(
+            select(ModelConfig).where(
+                ModelConfig.id == model_id,
+                ModelConfig.user_id == current_user.id,
+                ModelConfig.is_active == True,
+            )
+        )
         model = result.scalar_one_or_none()
-    
+
     if not model:
         raise HTTPException(status_code=400, detail="没有可用的模型配置")
-    
+
     # 获取 Agent（如果有）
     agent = None
-    agent_id = data.agent_id or conversation.agent_id
-    if agent_id:
-        result = await db.execute(select(Agent).where(Agent.id == agent_id))
+    if conversation.agent_id:
+        result = await db.execute(
+            select(Agent).where(
+                Agent.id == conversation.agent_id,
+                Agent.is_active == True,
+            )
+        )
         agent = result.scalar_one_or_none()
-    
+
     # 保存用户消息
     user_message = Message(
         conversation_id=conversation_id,
         role="user",
         content=data.content,
-        metadata={"file_ids": [str(fid) for fid in (data.file_ids or [])]},
+        file_ids=data.file_ids or [],
     )
     db.add(user_message)
     await db.commit()
-    
+
     # 获取历史消息
     result = await db.execute(
         select(Message)
@@ -184,11 +196,11 @@ async def chat(
         .order_by(Message.created_at)
         .limit(50)  # 限制上下文长度
     )
-    history = result.scalars().all()
-    
+    history = list(result.scalars().all())
+
     # 创建聊天服务
     chat_service = ChatService(db=db, model=model, agent=agent)
-    
+
     if data.stream:
         # SSE 流式响应
         async def generate():
@@ -196,7 +208,7 @@ async def chat(
             async for chunk in chat_service.stream_chat(data.content, history, data.file_ids):
                 full_content += chunk
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
-            
+
             # 保存助手消息
             assistant_message = Message(
                 conversation_id=conversation_id,
@@ -205,9 +217,9 @@ async def chat(
             )
             db.add(assistant_message)
             await db.commit()
-            
+
             yield f"data: {json.dumps({'done': True})}\n\n"
-        
+
         return StreamingResponse(
             generate(),
             media_type="text/event-stream",
@@ -216,7 +228,7 @@ async def chat(
     else:
         # 非流式响应
         content = await chat_service.chat(data.content, history, data.file_ids)
-        
+
         # 保存助手消息
         assistant_message = Message(
             conversation_id=conversation_id,
@@ -225,5 +237,5 @@ async def chat(
         )
         db.add(assistant_message)
         await db.commit()
-        
+
         return {"content": content}

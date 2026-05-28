@@ -10,46 +10,13 @@ from ..core import (
     get_db, hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token, settings
 )
+from ..core.security import get_current_user
 from ..models import User
 from ..schemas import UserLogin, UserRegister, TokenResponse, TokenRefresh, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
 security = HTTPBearer()
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> User:
-    """获取当前用户（依赖注入）"""
-    token = credentials.credentials
-    payload = decode_token(token)
-    
-    if not payload or payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的访问令牌",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的令牌载荷",
-        )
-    
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="用户不存在",
-        )
-    
-    return user
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)

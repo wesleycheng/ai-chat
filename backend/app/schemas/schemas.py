@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from enum import Enum
 
 
@@ -25,7 +25,6 @@ class UserCreate(BaseModel):
     password: str = Field(..., min_length=6)
 
 
-# 注册使用 UserCreate
 UserRegister = UserCreate
 
 
@@ -35,15 +34,14 @@ class UserLogin(BaseModel):
 
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     username: str
     email: str
     role: str
     is_active: bool
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class TokenResponse(BaseModel):
@@ -66,61 +64,71 @@ class ModelProvider(str, Enum):
 
 
 class ModelConfigCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     name: str = Field(..., min_length=1, max_length=100)
     provider: ModelProvider
     api_base: str
     api_key: str
-    model_name: str
+    model_name: str = Field(..., alias="model_name")
     params: Optional[dict] = {}
+    is_default: bool = False
 
 
 class ModelConfigUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     name: Optional[str] = None
     provider: Optional[ModelProvider] = None
     api_base: Optional[str] = None
     api_key: Optional[str] = None
-    model_name: Optional[str] = None
+    model_name: Optional[str] = Field(None, alias="model_name")
     params: Optional[dict] = None
     is_default: Optional[bool] = None
     is_active: Optional[bool] = None
 
 
 class ModelConfigResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     user_id: str
     name: str
     provider: str
     api_base: str
     api_key_masked: str
-    model_name: str
+    model_name: str = Field(..., alias="model_name")
     params: dict
     is_default: bool
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 # === 对话 ===
 class ConversationCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     title: Optional[str] = None
-    model_id: Optional[str] = None
+    model_id: Optional[str] = Field(None, alias="model_id")
     agent_id: Optional[str] = None
 
 
 class ConversationUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     title: Optional[str] = None
-    model_id: Optional[str] = None
+    model_id: Optional[str] = Field(None, alias="model_id")
     agent_id: Optional[str] = None
 
 
 class ConversationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     user_id: str
     title: Optional[str]
-    model_id: Optional[str]
-    agent_id: Optional[str]
+    model_id: Optional[str] = Field(None, alias="model_id")
+    agent_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -131,12 +139,16 @@ class ConversationListResponse(BaseModel):
 
 
 class MessageCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     content: str = Field(..., min_length=1)
     file_ids: Optional[List[str]] = []
-    model_id: Optional[str] = None
+    model_id: Optional[str] = Field(None, alias="model_id")
 
 
 class MessageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     conversation_id: str
     role: str
@@ -145,9 +157,6 @@ class MessageResponse(BaseModel):
     token_count: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
-
 
 class MessageListResponse(BaseModel):
     items: List[MessageResponse]
@@ -155,13 +164,17 @@ class MessageListResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     content: str = Field(..., min_length=1)
     file_ids: Optional[List[str]] = []
-    model_id: Optional[str] = None
+    model_id: Optional[str] = Field(None, alias="model_id")
     stream: bool = False
 
 
 class ChatResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     conversation_id: str
     role: str
@@ -184,6 +197,8 @@ class FileCreate(BaseModel):
 
 
 class FileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     user_id: str
     filename: str
@@ -193,9 +208,6 @@ class FileResponse(BaseModel):
     parse_error: Optional[str]
     content_text: Optional[str]
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class FileListResponse(BaseModel):
@@ -212,35 +224,38 @@ class FileStatusResponse(BaseModel):
 
 # === Agent ===
 class AgentCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     system_prompt: str
-    model_id: Optional[str] = None
+    model_id: Optional[str] = Field(None, alias="model_id")
     tools: Optional[List[str]] = []
 
 
 class AgentUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     name: Optional[str] = None
     description: Optional[str] = None
     system_prompt: Optional[str] = None
-    model_id: Optional[str] = None
+    model_id: Optional[str] = Field(None, alias="model_id")
     tools: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
 
 class AgentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     user_id: str
     name: str
     description: Optional[str]
     system_prompt: str
-    model_id: Optional[str]
+    model_id: Optional[str] = Field(None, alias="model_id")
     tools: List[str]
     is_active: bool
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class AgentListResponse(BaseModel):
@@ -250,15 +265,14 @@ class AgentListResponse(BaseModel):
 
 # === 使用统计 ===
 class UsageStatsResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
     id: str
     user_id: str
-    model_id: Optional[str]
-    conversation_id: Optional[str]
+    model_id: Optional[str] = Field(None, alias="model_id")
+    conversation_id: Optional[str] = None
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
     cost: float
     created_at: datetime
-
-    class Config:
-        from_attributes = True

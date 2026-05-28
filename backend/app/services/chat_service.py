@@ -27,7 +27,7 @@ class ChatService:
     def _get_llm(self) -> ChatOpenAI:
         """获取 LLM 实例"""
         if self._llm is None:
-            api_key = decrypt_api_key(self.model.api_key_enc)
+            api_key = decrypt_api_key(self.model.encrypted_api_key)
             
             self._llm = ChatOpenAI(
                 model=self.model.model_name,
