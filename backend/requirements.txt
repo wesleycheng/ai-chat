@@ -49,6 +49,9 @@ structlog==24.4.0
 # WebSocket
 websockets==14.1
 
+# 文件上传
+aiofiles==24.1.0
+
 # 工具
 httpx==0.28.1
 tenacity==9.0.0
