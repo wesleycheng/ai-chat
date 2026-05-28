@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Bot, Plus, Settings } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Bot, Plus, Settings, ArrowLeft } from 'lucide-react'
 import { agentApi } from '../lib/api'
 
 export default function AgentsPage() {
+  const navigate = useNavigate()
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],
     queryFn: () => agentApi.list().then(r => r.data),
@@ -11,8 +13,17 @@ export default function AgentsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Agent 管理</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              title="返回聊天"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-2xl font-bold">Agent 管理</h1>
+          </div>
           <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
             <Plus size={18} />
             创建 Agent

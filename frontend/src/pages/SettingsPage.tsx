@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Pencil, X, Check } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Pencil, X, Check } from 'lucide-react'
 import { configApi } from '../lib/api'
 
 const providerDefaults: Record<string, { api_base: string; model_name: string }> = {
@@ -11,6 +12,7 @@ const providerDefaults: Record<string, { api_base: string; model_name: string }>
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   // modal 状态：null=关闭，'add'=新增，{id,...}=编辑
@@ -97,7 +99,16 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">设置</h1>
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+            title="返回聊天"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h1 className="text-2xl font-bold">设置</h1>
+        </div>
 
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">

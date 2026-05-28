@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Upload, FileText, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Upload, FileText, Trash2, ArrowLeft } from 'lucide-react'
 import { fileApi } from '../lib/api'
 
 export default function FilesPage() {
+  const navigate = useNavigate()
   const { data: files, isLoading } = useQuery({
     queryKey: ['files'],
     queryFn: () => fileApi.list().then(r => r.data),
@@ -11,8 +13,17 @@ export default function FilesPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">文件管理</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+              title="返回聊天"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-2xl font-bold">文件管理</h1>
+          </div>
           <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
             <Upload size={18} />
             上传文件
