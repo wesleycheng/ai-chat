@@ -18,6 +18,7 @@ interface ChatState {
   currentConversationId: string | null
   streamingContent: string
   isStreaming: boolean
+  selectedModelId: string | null
   
   setCurrentConversation: (id: string | null) => void
   addConversation: (conversation: Conversation) => void
@@ -26,6 +27,7 @@ interface ChatState {
   appendStreamingContent: (content: string) => void
   setIsStreaming: (isStreaming: boolean) => void
   clearStreamingContent: () => void
+  setSelectedModelId: (id: string | null) => void
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -33,6 +35,7 @@ export const useChatStore = create<ChatState>((set) => ({
   currentConversationId: null,
   streamingContent: '',
   isStreaming: false,
+  selectedModelId: null,
   
   setCurrentConversation: (id) => set({ currentConversationId: id }),
   
@@ -58,4 +61,5 @@ export const useChatStore = create<ChatState>((set) => ({
   setIsStreaming: (isStreaming) => set({ isStreaming }),
   
   clearStreamingContent: () => set({ streamingContent: '' }),
+  setSelectedModelId: (id) => set({ selectedModelId: id }),
 }))

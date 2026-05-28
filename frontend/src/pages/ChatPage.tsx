@@ -13,7 +13,7 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user, logout } = useAuthStore()
-  const { currentConversationId, setCurrentConversation, streamingContent, isStreaming } = useChatStore()
+  const { currentConversationId, setCurrentConversation, streamingContent, isStreaming, selectedModelId, setSelectedModelId } = useChatStore()
   
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -25,10 +25,11 @@ export default function ChatPage() {
   })
 
   // 获取模型列表
-  useQuery({
+  const { data: modelsData } = useQuery({
     queryKey: ['models'],
     queryFn: () => configApi.listModels().then(r => r.data),
   })
+  const models = modelsData
 
   // 获取当前会话消息
   const { data: messages } = useQuery({
@@ -59,7 +60,11 @@ export default function ChatPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${useAuthStore.getState().token}`,
         },
-        body: JSON.stringify({ content, stream: true }),
+        body: JSON.stringify({ 
+          content, 
+          stream: true,
+          ...(selectedModelId ? { model_id: selectedModelId } : {}),
+        }),
       })
 
       const reader = response.body?.getReader()
@@ -198,6 +203,25 @@ export default function ChatPage() {
               ))}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* 模型选择器 */}
+            {models && models.length > 0 && (
+              <div className="border-t px-4 py-2 flex items-center gap-2">
+                <span className="text-sm text-gray-500">模型：</span>
+                <select
+                  value={selectedModelId || ''}
+                  onChange={(e) => setSelectedModelId(e.target.value || null)}
+                  className="text-sm px-2 py-1 border rounded-lg bg-white"
+                >
+                  <option value="">默认模型</option>
+                  {models.map((m: any) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.provider})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* 输入区 */}
             <div className="border-t p-4">
