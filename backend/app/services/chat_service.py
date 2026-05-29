@@ -1,5 +1,5 @@
 """聊天服务 - LangChain 集成"""
-from typing import List, Optional, AsyncGenerator
+from typing import List, Optional, AsyncGenerator, Tuple
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -82,23 +82,26 @@ class ChatService:
     async def _get_file_contents(
         self,
         file_ids: Optional[List[UUID]] = None,
-    ) -> list[tuple[str, str]]:
+    ) -> List[Tuple[str, str]]:
         """获取文件内容"""
         if not file_ids:
             return []
         
-        results = []
         from ..models.models import File as DBFile, FileStatus
         from ..api.files import parse_file_content
         
+        results = []
         for fid in file_ids:
             fid_str = str(fid)
             result = await self.db.execute(
-                select(DBFile).where(DBFile.id == fid_str, DBFile.user_id == self.model.user_id)
+                select(DBFile).where(DBFile.id == fid_str)
             )
             db_file = result.scalar_one_or_none()
             
-            if db_file and db_file.file_path:
+            if not db_file:
+                continue
+            
+            if db_file.file_path:
                 # 如果已有解析内容直接用
                 if db_file.content_text:
                     results.append((db_file.filename, db_file.content_text))

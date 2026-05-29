@@ -204,13 +204,18 @@ async def chat(
     # 创建聊天服务
     chat_service = ChatService(db=db, model=model, agent=agent)
 
+    # 转换 file_ids 为 UUID 列表
+    file_uuids = None
+    if data.file_ids:
+        file_uuids = [UUID(fid) for fid in data.file_ids]
+
     if data.stream:
         # SSE 流式响应
         async def generate():
             full_content = ""
-            async for chunk in chat_service.stream_chat(data.content, history, data.file_ids):
+            async for chunk in chat_service.stream_chat(data.content, history, file_uuids):
                 full_content += chunk
-                yield f"data: {json.dumps({'content': chunk})}\n\n"
+                yield "data: " + json.dumps({"content": chunk}) + "\n\n"
 
             # 保存助手消息
             assistant_message = Message(
@@ -222,7 +227,7 @@ async def chat(
             db.add(assistant_message)
             await db.commit()
 
-            yield f"data: {json.dumps({'done': True})}\n\n"
+            yield "data: " + json.dumps({"done": True}) + "\n\n"
 
         return StreamingResponse(
             generate(),
@@ -231,7 +236,7 @@ async def chat(
         )
     else:
         # 非流式响应
-        content = await chat_service.chat(data.content, history, data.file_ids)
+        content = await chat_service.chat(data.content, history, file_uuids)
 
         # 保存助手消息
         assistant_message = Message(
