@@ -16,8 +16,8 @@ export default function ChatPage() {
   const { currentConversationId, setCurrentConversation, streamingContent, isStreaming, selectedModelId, setSelectedModelId, selectedAgentId, setSelectedAgentId } = useChatStore()
   
   const [input, setInput] = useState('')
-  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string }[]>([])
-  const [uploadingFile, setUploadingFile] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [uploadingFiles, setUploadingFiles] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -65,7 +65,23 @@ export default function ChatPage() {
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
       if (!currentConversationId) return
-      const fileIds = attachedFiles.length > 0 ? attachedFiles.map(f => f.id) : undefined
+      
+      // 先上传所有文件
+      let fileIds: string[] = []
+      if (selectedFiles.length > 0) {
+        setUploadingFiles(true)
+        try {
+          const uploadPromises = selectedFiles.map(file => fileApi.upload(file))
+          const uploadResults = await Promise.all(uploadPromises)
+          fileIds = uploadResults.map(r => r.data.id)
+        } catch (err) {
+          console.error('文件上传失败', err)
+          throw err
+        } finally {
+          setUploadingFiles(false)
+        }
+      }
+      
       // 使用 fetch 进行 SSE 流式请求
       const response = await fetch(`/api/conversations/${currentConversationId}/chat`, {
         method: 'POST',
@@ -78,7 +94,7 @@ export default function ChatPage() {
           stream: true,
           ...(selectedModelId ? { model_id: selectedModelId } : {}),
           ...(selectedAgentId ? { agent_id: selectedAgentId } : {}),
-          ...(fileIds ? { file_ids: fileIds } : {}),
+          ...(fileIds.length > 0 ? { file_ids: fileIds } : {}),
         }),
       })
 
@@ -112,8 +128,8 @@ export default function ChatPage() {
         read()
       })
     },
-    onSettled: () => {
-      setAttachedFiles([])
+    onSuccess: () => {
+      setSelectedFiles([])
     },
   })
 
@@ -122,30 +138,20 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingContent])
 
-  // 上传文件
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 选择文件（只保存本地引用，不立即上传）
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
-    setUploadingFile(true)
-    try {
-      for (const file of files) {
-        const res = await fileApi.upload(file)
-        setAttachedFiles(prev => [...prev, { id: res.data.id, name: res.data.filename }])
-      }
-    } catch (err) {
-      console.error('文件上传失败', err)
-    } finally {
-      setUploadingFile(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
+    setSelectedFiles(prev => [...prev, ...Array.from(files)])
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const removeFile = (fileId: string) => {
-    setAttachedFiles(prev => prev.filter(f => f.id !== fileId))
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleSend = () => {
-    if (!input.trim() || isStreaming) return
+    if (!input.trim() || isStreaming || uploadingFiles) return
     
     const content = input.trim()
     setInput('')
@@ -285,13 +291,13 @@ export default function ChatPage() {
             {/* 输入区 */}
             <div className="border-t p-4">
               {/* 已选文件列表 */}
-              {attachedFiles.length > 0 && (
+              {selectedFiles.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
-                  {attachedFiles.map(f => (
-                    <div key={f.id} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-lg">
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-lg">
                       <FileText size={14} />
-                      <span className="max-w-[120px] truncate">{f.name}</span>
-                      <button onClick={() => removeFile(f.id)} className="ml-1 hover:text-blue-900">
+                      <span className="max-w-[120px] truncate">{file.name}</span>
+                      <button onClick={() => removeFile(index)} className="ml-1 hover:text-blue-900">
                         <X size={14} />
                       </button>
                     </div>
@@ -304,32 +310,36 @@ export default function ChatPage() {
                   type="file"
                   className="hidden"
                   multiple
-                  accept=".pdf,.docx,.xlsx,.txt,.md,.jpg,.jpeg,.png"
+                  accept=".pdf,.docx,.xlsx,.txt,.md"
                   onChange={handleFileSelect}
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile}
+                  disabled={uploadingFiles}
                   className="px-3 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                  title="上传文件"
+                  title="选择文件"
                 >
-                  <Paperclip size={18} className={uploadingFile ? 'animate-pulse' : ''} />
+                  <Paperclip size={18} className={uploadingFiles ? 'animate-pulse' : ''} />
                 </button>
                 <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="输入消息..."
+                  placeholder={uploadingFiles ? "上传文件中..." : "输入消息..."}
                   className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  disabled={isStreaming}
+                  disabled={isStreaming || uploadingFiles}
                 />
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim() || isStreaming}
+                  disabled={!input.trim() || isStreaming || uploadingFiles}
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                 >
-                  <Send size={18} />
+                  {uploadingFiles ? (
+                    <span className="text-sm">上传中</span>
+                  ) : (
+                    <Send size={18} />
+                  )}
                 </button>
               </div>
             </div>

@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import List, Optional
 
 import aiofiles
-import filetype
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,25 +15,55 @@ from ..schemas.schemas import FileCreate, FileResponse, FileListResponse
 
 router = APIRouter(prefix="/files", tags=["files"])
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".txt", ".md", ".jpg", ".jpeg", ".png"}
+# 支持的文件扩展名和对应的MIME类型
+ALLOWED_EXTENSIONS = {
+    ".pdf": ["application/pdf"],
+    ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+    ".xlsx": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    ".txt": ["text/plain"],
+    ".md": ["text/markdown", "text/plain"],
+    ".jpg": ["image/jpeg"],
+    ".jpeg": ["image/jpeg"],
+    ".png": ["image/png"],
+}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-async def validate_file(file: UploadFile) -> None:
-    """验证文件类型和大小"""
+def get_extension_from_filename(filename: str) -> Optional[str]:
+    """从文件名获取扩展名"""
+    if not filename:
+        return None
+    ext = os.path.splitext(filename)[1].lower()
+    return ext if ext in ALLOWED_EXTENSIONS else None
+
+
+async def validate_file(file: UploadFile) -> str:
+    """验证文件类型和大小，返回扩展名"""
     # 检查文件大小
-    contents = await file.read(MAX_FILE_SIZE)
+    contents = await file.read(MAX_FILE_SIZE + 1)
     await file.seek(0)
     
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail=f"文件大小超过 {MAX_FILE_SIZE / 1024 / 1024}MB 限制")
     
-    # 检查文件类型
-    kind = filetype.guess(contents)
-    if kind is None or f".{kind.extension}" not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="不支持的文件类型")
+    # 先尝试从文件名获取扩展名
+    ext = get_extension_from_filename(file.filename)
     
-    return kind
+    # 如果是文本文件，直接允许（不需要检查魔数）
+    if ext in [".txt", ".md"]:
+        return ext
+    
+    # 其他文件类型检查MIME类型
+    if file.content_type:
+        allowed_mimes = ALLOWED_EXTENSIONS.get(ext, [])
+        if file.content_type not in allowed_mimes and ext:
+            # 有些浏览器可能发送不同的MIME类型，用扩展名判断
+            pass
+    
+    if not ext:
+        raise HTTPException(status_code=400, detail="不支持的文件类型，支持：pdf/docx/xlsx/txt/md/jpg/png")
+    
+    return ext
 
 
 async def parse_file_content(file_path: str, extension: str) -> Optional[str]:
@@ -52,9 +81,9 @@ async def parse_file_content(file_path: str, extension: str) -> Optional[str]:
             async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
                 return await f.read()
         elif ext in [".jpg", ".jpeg", ".png"]:
-            return "[图片文件]"  # 图片需要 OCR 处理
+            return "[图片文件，暂不支持OCR解析]"
     except Exception as e:
-        return f"[解析失败: {str(e)}]"
+        return f"[文件解析失败: {str(e)}]"
     
     return None
 
@@ -73,7 +102,7 @@ async def parse_docx(file_path: str) -> str:
     """解析 DOCX"""
     from docx import Document
     doc = Document(file_path)
-    return "\n".join([p.text for p in doc.paragraphs])
+    return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
 
 
 async def parse_xlsx(file_path: str) -> str:
@@ -83,7 +112,7 @@ async def parse_xlsx(file_path: str) -> str:
     parts = []
     for sheet in wb.worksheets:
         for row in sheet.iter_rows(values_only=True):
-            if any(row):
+            if any(cell is not None for cell in row):
                 parts.append(" | ".join([str(cell) if cell else "" for cell in row]))
     return "\n".join(parts)
 
@@ -94,47 +123,45 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """上传文件"""
+    """上传文件并立即解析内容"""
     # 验证文件
     try:
-        kind = await validate_file(file)
+        ext = await validate_file(file)
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     
     # 生成文件路径
-    file_ext = f".{kind.extension}"
     file_id = str(uuid.uuid4())
-    file_path = os.path.join(
-        os.getenv("UPLOAD_DIR", "./uploads"),
-        f"{file_id}{file_ext}"
-    )
+    upload_dir = os.getenv("UPLOAD_DIR", "./uploads")
+    file_path = os.path.join(upload_dir, f"{file_id}{ext}")
     
     # 确保目录存在
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    os.makedirs(upload_dir, exist_ok=True)
     
     # 保存文件
     contents = await file.read()
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(contents)
     
+    # 立即解析文件内容
+    content_text = await parse_file_content(file_path, ext)
+    
     # 创建数据库记录
     db_file = DBFile(
         id=file_id,
         user_id=current_user.id,
-        filename=file.filename,
-        file_ext=file_ext,
+        filename=file.filename or "unknown",
+        file_ext=ext,
         file_size=len(contents),
         file_path=file_path,
-        parse_status=FileStatus.PENDING,
+        parse_status=FileStatus.COMPLETED if content_text and not content_text.startswith("[") else FileStatus.FAILED,
+        content_text=content_text,
     )
     db.add(db_file)
     await db.commit()
     await db.refresh(db_file)
-    
-    # TODO: 提交异步任务解析文件内容
-    # await file_parse_task.delay(file_id)
     
     return db_file
 
@@ -174,28 +201,6 @@ async def get_file(
         raise HTTPException(status_code=404, detail="文件不存在")
     
     return file
-
-
-@router.get("/{file_id}/status")
-async def get_file_status(
-    file_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """获取文件解析状态"""
-    stmt = select(DBFile).where(DBFile.id == file_id, DBFile.user_id == current_user.id)
-    result = await db.execute(stmt)
-    file = result.scalar_one_or_none()
-    
-    if not file:
-        raise HTTPException(status_code=404, detail="文件不存在")
-    
-    return {
-        "id": file.id,
-        "filename": file.filename,
-        "parse_status": file.parse_status.value,
-        "parse_error": file.parse_error,
-    }
 
 
 @router.delete("/{file_id}")
