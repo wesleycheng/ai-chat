@@ -7,13 +7,13 @@ import rehypeSanitize from 'rehype-sanitize'
 import { Send, Plus, Settings, FileText, Bot, LogOut } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore } from '../stores/chatStore'
-import { conversationApi, configApi } from '../lib/api'
+import { conversationApi, configApi, agentApi } from '../lib/api'
 
 export default function ChatPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user, logout } = useAuthStore()
-  const { currentConversationId, setCurrentConversation, streamingContent, isStreaming, selectedModelId, setSelectedModelId } = useChatStore()
+  const { currentConversationId, setCurrentConversation, streamingContent, isStreaming, selectedModelId, setSelectedModelId, selectedAgentId, setSelectedAgentId } = useChatStore()
   
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -31,6 +31,12 @@ export default function ChatPage() {
   })
   const models = modelsData
 
+  // 获取Agent列表
+  const { data: agents } = useQuery({
+    queryKey: ['agents'],
+    queryFn: () => agentApi.list().then(r => r.data),
+  })
+
   // 获取当前会话消息
   const { data: messages } = useQuery({
     queryKey: ['messages', currentConversationId],
@@ -42,7 +48,10 @@ export default function ChatPage() {
 
   // 创建会话
   const createConversation = useMutation({
-    mutationFn: () => conversationApi.create({ title: '新对话' }),
+    mutationFn: () => conversationApi.create({
+      title: selectedAgentId ? undefined : '新对话',
+      agent_id: selectedAgentId || undefined,
+    }),
     onSuccess: (data) => {
       setCurrentConversation(data.data.id)
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
@@ -64,6 +73,7 @@ export default function ChatPage() {
           content, 
           stream: true,
           ...(selectedModelId ? { model_id: selectedModelId } : {}),
+          ...(selectedAgentId ? { agent_id: selectedAgentId } : {}),
         }),
       })
 
@@ -204,24 +214,43 @@ export default function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* 模型选择器 */}
-            {models && models.length > 0 && (
-              <div className="border-t px-4 py-2 flex items-center gap-2">
-                <span className="text-sm text-gray-500">模型：</span>
-                <select
-                  value={selectedModelId || ''}
-                  onChange={(e) => setSelectedModelId(e.target.value || null)}
-                  className="text-sm px-2 py-1 border rounded-lg bg-white"
-                >
-                  <option value="">默认模型</option>
-                  {models.map((m: any) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.provider})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* 模型 & Agent 选择器 */}
+            <div className="border-t px-4 py-2 flex items-center gap-3 flex-wrap">
+              {models && models.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-500">模型：</span>
+                  <select
+                    value={selectedModelId || ''}
+                    onChange={(e) => setSelectedModelId(e.target.value || null)}
+                    className="text-sm px-2 py-1 border rounded-lg bg-white"
+                  >
+                    <option value="">默认模型</option>
+                    {models.map((m: any) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name} ({m.provider})
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+              {agents && agents.length > 0 && (
+                <>
+                  <span className="text-sm text-gray-500">Agent：</span>
+                  <select
+                    value={selectedAgentId || ''}
+                    onChange={(e) => setSelectedAgentId(e.target.value || null)}
+                    className="text-sm px-2 py-1 border rounded-lg bg-white"
+                  >
+                    <option value="">不使用</option>
+                    {agents.map((a: any) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+            </div>
 
             {/* 输入区 */}
             <div className="border-t p-4">
