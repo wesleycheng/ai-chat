@@ -4,10 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeSanitize from 'rehype-sanitize'
-import { Send, Plus, Settings, FileText, Bot, LogOut } from 'lucide-react'
+import { Send, Plus, Settings, FileText, Bot, LogOut, Paperclip, X } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore } from '../stores/chatStore'
-import { conversationApi, configApi, agentApi } from '../lib/api'
+import { conversationApi, configApi, agentApi, fileApi } from '../lib/api'
 
 export default function ChatPage() {
   const navigate = useNavigate()
@@ -16,6 +16,9 @@ export default function ChatPage() {
   const { currentConversationId, setCurrentConversation, streamingContent, isStreaming, selectedModelId, setSelectedModelId, selectedAgentId, setSelectedAgentId } = useChatStore()
   
   const [input, setInput] = useState('')
+  const [attachedFiles, setAttachedFiles] = useState<{ id: string; name: string }[]>([])
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // 获取会话列表
@@ -62,6 +65,7 @@ export default function ChatPage() {
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
       if (!currentConversationId) return
+      const fileIds = attachedFiles.length > 0 ? attachedFiles.map(f => f.id) : undefined
       // 使用 fetch 进行 SSE 流式请求
       const response = await fetch(`/api/conversations/${currentConversationId}/chat`, {
         method: 'POST',
@@ -74,6 +78,7 @@ export default function ChatPage() {
           stream: true,
           ...(selectedModelId ? { model_id: selectedModelId } : {}),
           ...(selectedAgentId ? { agent_id: selectedAgentId } : {}),
+          ...(fileIds ? { file_ids: fileIds } : {}),
         }),
       })
 
@@ -107,12 +112,37 @@ export default function ChatPage() {
         read()
       })
     },
+    onSettled: () => {
+      setAttachedFiles([])
+    },
   })
 
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingContent])
+
+  // 上传文件
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    setUploadingFile(true)
+    try {
+      for (const file of files) {
+        const res = await fileApi.upload(file)
+        setAttachedFiles(prev => [...prev, { id: res.data.id, name: res.data.filename }])
+      }
+    } catch (err) {
+      console.error('文件上传失败', err)
+    } finally {
+      setUploadingFile(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const removeFile = (fileId: string) => {
+    setAttachedFiles(prev => prev.filter(f => f.id !== fileId))
+  }
 
   const handleSend = () => {
     if (!input.trim() || isStreaming) return
@@ -254,7 +284,37 @@ export default function ChatPage() {
 
             {/* 输入区 */}
             <div className="border-t p-4">
+              {/* 已选文件列表 */}
+              {attachedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {attachedFiles.map(f => (
+                    <div key={f.id} className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-lg">
+                      <FileText size={14} />
+                      <span className="max-w-[120px] truncate">{f.name}</span>
+                      <button onClick={() => removeFile(f.id)} className="ml-1 hover:text-blue-900">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept=".pdf,.docx,.xlsx,.txt,.md,.jpg,.jpeg,.png"
+                  onChange={handleFileSelect}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  className="px-3 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  title="上传文件"
+                >
+                  <Paperclip size={18} className={uploadingFile ? 'animate-pulse' : ''} />
+                </button>
                 <input
                   type="text"
                   value={input}

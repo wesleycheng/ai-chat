@@ -39,7 +39,7 @@ class ChatService:
             )
         return self._llm
     
-    def _build_messages(
+    async def _build_messages(
         self,
         user_input: str,
         history: List[Message],
@@ -53,6 +53,15 @@ class ChatService:
             system_prompt = self.agent.system_prompt
         else:
             system_prompt = "你是一个有帮助的AI助手。"
+        
+        # 收集文件内容
+        file_contents = await self._get_file_contents(file_ids)
+        
+        if file_contents:
+            file_section = "\n\n---\n\n以下是用户提供的文件内容，请结合这些内容回答问题：\n\n"
+            for filename, content in file_contents:
+                file_section += f"### 文件：{filename}\n{content}\n\n"
+            system_prompt += file_section
         
         messages.append(SystemMessage(content=system_prompt))
         
@@ -69,6 +78,40 @@ class ChatService:
         messages.append(HumanMessage(content=user_input))
         
         return messages
+
+    async def _get_file_contents(
+        self,
+        file_ids: Optional[List[UUID]] = None,
+    ) -> list[tuple[str, str]]:
+        """获取文件内容"""
+        if not file_ids:
+            return []
+        
+        results = []
+        from ..models.models import File as DBFile, FileStatus
+        from ..api.files import parse_file_content
+        
+        for fid in file_ids:
+            fid_str = str(fid)
+            result = await self.db.execute(
+                select(DBFile).where(DBFile.id == fid_str, DBFile.user_id == self.model.user_id)
+            )
+            db_file = result.scalar_one_or_none()
+            
+            if db_file and db_file.file_path:
+                # 如果已有解析内容直接用
+                if db_file.content_text:
+                    results.append((db_file.filename, db_file.content_text))
+                elif db_file.parse_status == FileStatus.PENDING:
+                    # 实时解析
+                    content = await parse_file_content(db_file.file_path, db_file.file_ext)
+                    if content:
+                        db_file.content_text = content
+                        db_file.parse_status = FileStatus.COMPLETED
+                        await self.db.commit()
+                        results.append((db_file.filename, content))
+        
+        return results
     
     async def stream_chat(
         self,
@@ -78,7 +121,7 @@ class ChatService:
     ) -> AsyncGenerator[str, None]:
         """流式聊天"""
         llm = self._get_llm()
-        messages = self._build_messages(user_input, history, file_ids)
+        messages = await self._build_messages(user_input, history, file_ids)
         
         async for chunk in llm.astream(messages):
             if chunk.content:
@@ -92,7 +135,7 @@ class ChatService:
     ) -> str:
         """非流式聊天"""
         llm = self._get_llm()
-        messages = self._build_messages(user_input, history, file_ids)
+        messages = await self._build_messages(user_input, history, file_ids)
         
         response = await llm.ainvoke(messages)
         return response.content
