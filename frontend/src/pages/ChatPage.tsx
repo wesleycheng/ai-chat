@@ -71,9 +71,13 @@ export default function ChatPage() {
       if (selectedFiles.length > 0) {
         setUploadingFiles(true)
         try {
-          const uploadPromises = selectedFiles.map(file => fileApi.upload(file))
-          const uploadResults = await Promise.all(uploadPromises)
-          fileIds = uploadResults.map(r => r.data.id)
+          // 逐个上传文件，便于调试
+          for (const file of selectedFiles) {
+            console.log('上传文件:', file.name, file.size)
+            const res = await fileApi.upload(file)
+            console.log('上传成功:', res.data.id)
+            fileIds.push(res.data.id)
+          }
         } catch (err) {
           console.error('文件上传失败', err)
           throw err

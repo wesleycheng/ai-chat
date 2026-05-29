@@ -71,9 +71,7 @@ export const fileApi = {
   upload: async (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post('/files/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return api.post('/files/upload', formData)
   },
   
   list: (skip = 0, limit = 20) =>
