@@ -102,10 +102,14 @@ export default function AgentsPage() {
 
   const handleSave = () => {
     if (!form.name.trim() || !form.system_prompt.trim()) return
+    const payload = {
+      ...form,
+      model_id: form.model_id || null,
+    } as any
     if (editingAgent) {
-      updateAgent.mutate({ id: editingAgent.id, data: form })
+      updateAgent.mutate({ id: editingAgent.id, data: payload })
     } else {
-      createAgent.mutate(form)
+      createAgent.mutate(payload)
     }
   }
 

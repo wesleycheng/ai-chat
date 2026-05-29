@@ -44,7 +44,7 @@ async def create_agent(
         name=data.name,
         description=data.description,
         system_prompt=data.system_prompt,
-        model_id=data.model_id,
+        model_id=data.model_id or None,
         tools=data.tools or [],
         is_active=True,
     )
