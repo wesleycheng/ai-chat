@@ -5,7 +5,7 @@ from typing import List, Optional
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
@@ -179,9 +179,9 @@ async def list_files(
     result = await db.execute(stmt)
     files = result.scalars().all()
     
-    count_stmt = select(DBFile).where(DBFile.user_id == current_user.id)
+    count_stmt = select(func.count(DBFile.id)).where(DBFile.user_id == current_user.id)
     count_result = await db.execute(count_stmt)
-    total = len(count_result.scalars().all())
+    total = count_result.scalar_one()
     
     return {"items": files, "total": total}
 

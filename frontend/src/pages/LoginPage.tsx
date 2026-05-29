@@ -21,9 +21,9 @@ export default function LoginPage() {
     try {
       let response
       if (isLogin) {
-        response = await authApi.login(username, password)
+        response = await authApi.login({ username, password })
       } else {
-        response = await authApi.register(username, email, password)
+        response = await authApi.register({ username, email, password })
       }
 
       const { access_token, refresh_token, user } = response.data
@@ -38,7 +38,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow">
+      <div className="max-w-md w-full p-8 bg-white rounded-2xl shadow-lg">
         <h1 className="text-2xl font-bold text-center mb-6">AI Chat Platform</h1>
         
         <div className="flex mb-6">
@@ -62,60 +62,51 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              用户名
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <input
               type="text"
+              placeholder="用户名"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500"
               required
             />
           </div>
 
           {!isLogin && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                邮箱
-              </label>
+            <div>
               <input
                 type="email"
+                placeholder="邮箱（可选）"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                required
+                className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500"
               />
             </div>
           )}
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              密码
-            </label>
+          <div>
             <input
               type="password"
+              placeholder="密码"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500"
               required
             />
           </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-              {error}
-            </div>
+            <div className="text-red-500 text-sm text-center">{error}</div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+            className="w-full py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 font-medium"
           >
-            {loading ? '处理中...' : isLogin ? '登录' : '注册'}
+            {loading ? '处理中...' : (isLogin ? '登录' : '注册')}
           </button>
         </form>
       </div>

@@ -4,9 +4,6 @@ import { useAuthStore } from '../stores/authStore'
 const api = axios.create({
   baseURL: '/api',
   timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 })
 
 // 请求拦截器
@@ -15,6 +12,10 @@ api.interceptors.request.use(
     const token = useAuthStore.getState().token
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    // 如果是 FormData，不设置 Content-Type（让浏览器自动设置 boundary）
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
     }
     return config
   },
@@ -33,97 +34,43 @@ api.interceptors.response.use(
   }
 )
 
-// 认证 API
 export const authApi = {
-  login: (username: string, password: string) =>
-    api.post('/auth/login', { username, password }),
-  
-  register: (username: string, email: string, password: string) =>
-    api.post('/auth/register', { username, email, password }),
-  
-  refresh: (refreshToken: string) =>
-    api.post('/auth/refresh', { refresh_token: refreshToken }),
-  
-  getMe: () => api.get('/auth/me'),
+  login: (data: { username: string; password: string }) => api.post('/auth/login', data),
+  register: (data: { username: string; email?: string; password: string }) => api.post('/auth/register', data),
+  me: () => api.get('/auth/me'),
 }
 
-// 会话 API
 export const conversationApi = {
-  list: (skip = 0, limit = 20) =>
-    api.get('/conversations', { params: { skip, limit } }),
-  
-  create: (data: { title?: string; model_id?: string; agent_id?: string }) =>
-    api.post('/conversations', data),
-  
-  get: (id: string) => api.get(`/conversations/${id}`),
-  
+  list: () => api.get('/conversations'),
+  create: (data: any) => api.post('/conversations', data),
+  getMessages: (id: string) => api.get(`/conversations/${id}/messages`),
   delete: (id: string) => api.delete(`/conversations/${id}`),
-  
-  getMessages: (id: string, skip = 0, limit = 50) =>
-    api.get(`/conversations/${id}/messages`, { params: { skip, limit } }),
-  
-  chat: (id: string, content: string, options?: { file_ids?: string[]; model_id?: string }) =>
-    api.post(`/conversations/${id}/chat`, { content, ...options }),
+  chat: (id: string, data: any) => api.post(`/conversations/${id}/chat`, data),
 }
 
-// 文件 API
 export const fileApi = {
-  upload: async (file: File) => {
+  upload: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
     return api.post('/files/upload', formData)
   },
-  
-  list: (skip = 0, limit = 20) =>
-    api.get('/files', { params: { skip, limit } }),
-  
+  list: () => api.get('/files'),
   get: (id: string) => api.get(`/files/${id}`),
-  
   getStatus: (id: string) => api.get(`/files/${id}/status`),
-  
   delete: (id: string) => api.delete(`/files/${id}`),
 }
 
-// Agent API
 export const agentApi = {
-  list: (skip = 0, limit = 20) =>
-    api.get('/agents', { params: { skip, limit } }),
-  
-  create: (data: {
-    name: string
-    description?: string
-    system_prompt: string
-    model_id?: string
-    tools?: string[]
-  }) => api.post('/agents', data),
-  
-  get: (id: string) => api.get(`/agents/${id}`),
-  
-  update: (id: string, data: Record<string, unknown>) =>
-    api.put(`/agents/${id}`, data),
-  
+  list: () => api.get('/agents'),
+  create: (data: any) => api.post('/agents', data),
+  update: (id: string, data: any) => api.put(`/agents/${id}`, data),
   delete: (id: string) => api.delete(`/agents/${id}`),
 }
 
-// 配置 API
 export const configApi = {
   listModels: () => api.get('/config/models'),
-  
-  createModel: (data: {
-    name: string
-    provider: string
-    api_base: string
-    api_key: string
-    model_name: string
-    params?: Record<string, unknown>
-  }) => api.post('/config/models', data),
-  
-  updateModel: (id: string, data: Record<string, unknown>) =>
-    api.put(`/config/models/${id}`, data),
-  
+  createModel: (data: any) => api.post('/config/models', data),
+  updateModel: (id: string, data: any) => api.put(`/config/models/${id}`, data),
   deleteModel: (id: string) => api.delete(`/config/models/${id}`),
-  
-  testModel: (id: string) => api.post(`/config/models/${id}/test`),
+  listProviders: () => api.get('/config/providers'),
 }
-
-export default api
