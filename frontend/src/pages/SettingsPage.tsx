@@ -17,7 +17,7 @@ export default function SettingsPage() {
 
   const [modalMode, setModalMode] = useState<'add' | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState({ name: '', provider: 'deepseek', api_base: '', api_key: '', model_name: '' })
+  const [form, setForm] = useState({ name: '', provider: 'deepseek', api_base: '', api_key: '', model_name: '', is_default: false, is_active: true })
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
   const [expanded, setExpanded] = useState(false)
 
@@ -52,7 +52,7 @@ export default function SettingsPage() {
   })
 
   const openAddModal = () => {
-    setForm({ name: '', provider: 'deepseek', api_base: '', api_key: '', model_name: '' })
+    setForm({ name: '', provider: 'deepseek', api_base: '', api_key: '', model_name: '', is_default: false, is_active: true })
     setEditingId(null)
     setModalMode('add')
   }
@@ -64,6 +64,8 @@ export default function SettingsPage() {
       api_base: model.api_base,
       api_key: '',
       model_name: model.model_name || '',
+      is_default: model.is_default || false,
+      is_active: model.is_active !== false,
     })
     setEditingId(model.id)
     setModalMode('add')
@@ -72,7 +74,7 @@ export default function SettingsPage() {
   const closeModal = () => {
     setModalMode(null)
     setEditingId(null)
-    setForm({ name: '', provider: 'deepseek', api_base: '', api_key: '', model_name: '' })
+    setForm({ name: '', provider: 'deepseek', api_base: '', api_key: '', model_name: '', is_default: false, is_active: true })
   }
 
   const handleProviderChange = (provider: string) => {
@@ -81,13 +83,18 @@ export default function SettingsPage() {
   }
 
   const handleSave = () => {
+    const payload: Record<string, unknown> = {
+      name: form.name,
+      provider: form.provider,
+      api_base: form.api_base,
+      model_name: form.model_name,
+      is_default: form.is_default,
+      is_active: form.is_active,
+    }
+    if (form.api_key) {
+      payload.api_key = form.api_key
+    }
     if (editingId) {
-      const payload: Record<string, unknown> = {}
-      if (form.name) payload.name = form.name
-      if (form.provider) payload.provider = form.provider
-      if (form.api_base) payload.api_base = form.api_base
-      if (form.api_key) payload.api_key = form.api_key
-      if (form.model_name) payload.model_name = form.model_name
       updateModel.mutate({ id: editingId, payload })
     } else {
       addModel.mutate(form)
@@ -156,6 +163,9 @@ export default function SettingsPage() {
                           <span className="font-medium">{model.name}</span>
                           {model.is_default && (
                             <span className="px-2 py-0.5 bg-primary-100 text-primary-600 text-xs rounded-full">默认</span>
+                          )}
+                          {!model.is_active && (
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">已禁用</span>
                           )}
                         </div>
                         <div className="text-sm text-gray-500 truncate mt-0.5">
@@ -263,6 +273,26 @@ export default function SettingsPage() {
                   className="w-full px-3 py-2.5 border rounded-xl focus:ring-2 focus:ring-primary-500"
                   placeholder="sk-..."
                 />
+              </div>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.is_default}
+                    onChange={e => setForm(prev => ({ ...prev, is_default: e.target.checked }))}
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <span className="text-sm">设为默认模型</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={e => setForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                  />
+                  <span className="text-sm">启用</span>
+                </label>
               </div>
             </div>
             <div className="flex gap-2 mt-6">
