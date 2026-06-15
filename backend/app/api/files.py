@@ -124,12 +124,20 @@ async def upload_file(
     current_user: User = Depends(get_current_user),
 ):
     """上传文件并立即解析内容"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"[FileAPI] 开始上传文件: {file.filename}, 大小: {file.size if hasattr(file, 'size') else 'unknown'}, MIME: {file.content_type}")
+    
     # 验证文件
     try:
         ext = await validate_file(file)
-    except HTTPException:
+        logger.info(f"[FileAPI] 文件验证通过，扩展名: {ext}")
+    except HTTPException as e:
+        logger.error(f"[FileAPI] 文件验证失败: {e.detail}")
         raise
     except Exception as e:
+        logger.error(f"[FileAPI] 文件验证异常: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     
     # 生成文件路径
@@ -137,16 +145,24 @@ async def upload_file(
     upload_dir = os.getenv("UPLOAD_DIR", "./uploads")
     file_path = os.path.join(upload_dir, f"{file_id}{ext}")
     
+    logger.info(f"[FileAPI] 生成文件ID: {file_id}, 存储路径: {file_path}")
+    
     # 确保目录存在
     os.makedirs(upload_dir, exist_ok=True)
+    logger.info(f"[FileAPI] 上传目录已准备: {upload_dir}")
     
     # 保存文件
     contents = await file.read()
+    logger.info(f"[FileAPI] 文件内容已读取，大小: {len(contents)} bytes")
+    
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(contents)
+    logger.info(f"[FileAPI] 文件已保存到: {file_path}")
     
     # 立即解析文件内容
+    logger.info(f"[FileAPI] 开始解析文件内容...")
     content_text = await parse_file_content(file_path, ext)
+    logger.info(f"[FileAPI] 文件解析完成，内容长度: {len(content_text) if content_text else 0} 字符")
     
     # 创建数据库记录
     db_file = DBFile(
@@ -162,6 +178,8 @@ async def upload_file(
     db.add(db_file)
     await db.commit()
     await db.refresh(db_file)
+    
+    logger.info(f"[FileAPI] 文件记录已创建，ID: {file_id}, 用户: {current_user.username}, 状态: {db_file.parse_status}")
     
     return db_file
 

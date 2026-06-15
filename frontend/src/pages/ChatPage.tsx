@@ -129,16 +129,31 @@ export default function ChatPage() {
       let fileIds: string[] = []
       if (selectedFiles.length > 0) {
         setUploadingFiles(true)
+        console.log(`📎 开始上传 ${selectedFiles.length} 个文件...`)
+        
         try {
           // 并行上传所有文件以提升速度
-          const uploadPromises = selectedFiles.map(async (file) => {
-            const res = await fileApi.upload(file)
-            return res.data.id
+          const uploadPromises = selectedFiles.map(async (file, index) => {
+            console.log(`📤 [${index + 1}/${selectedFiles.length}] 正在上传: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`)
+            try {
+              const res = await fileApi.upload(file)
+              console.log(`✅ [${index + 1}/${selectedFiles.length}] 上传成功: ${file.name} → ID: ${res.data.id}`)
+              return res.data.id
+            } catch (uploadError: any) {
+              console.error(`❌ [${index + 1}/${selectedFiles.length}] 上传失败: ${file.name}`, uploadError)
+              console.error('错误详情:', uploadError.response?.data || uploadError.message)
+              throw uploadError
+            }
           })
+          
           fileIds = await Promise.all(uploadPromises)
-          console.log(`✅ 成功上传 ${fileIds.length} 个文件`, fileIds)
+          console.log(`✅ 全部文件上传成功！共 ${fileIds.length} 个文件，IDs:`, fileIds)
+          
+          // 清空已选文件列表
+          setSelectedFiles([])
         } catch (err) {
           console.error('❌ 文件上传失败:', err)
+          alert('文件上传失败，请重试')
           setUploadingFiles(false)
           throw err
         } finally {
@@ -168,6 +183,14 @@ export default function ChatPage() {
           ...(selectedAgentId ? { agent_id: selectedAgentId } : {}),
           ...(fileIds.length > 0 ? { file_ids: fileIds } : {}),
         }),
+      })
+      
+      console.log('📤 发送聊天请求:', {
+        conversationId: currentConversationId,
+        content: content.substring(0, 50) + '...',
+        modelId: selectedModelId,
+        agentId: selectedAgentId,
+        fileIds: fileIds.length > 0 ? fileIds : '无文件'
       })
 
       if (!response.ok) {
