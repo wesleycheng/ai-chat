@@ -55,11 +55,11 @@ const tocItems = [
 tocItems.forEach((item, i) => {
   const row = Math.floor(i / 3);
   const col = i % 3;
-  const x = 0.5 + col * 3.1;
-  const y = 1.3 + row * 1.5;
-  s2.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.9, h: 1.2, fill: { color: i >= 4 && i <= 6 ? BLUE_LIGHT : GRAY_LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
-  s2.addText(item[0], { x, y: y + 0.1, w: 2.9, h: 0.5, fontSize: 22, fontFace: "Arial Black", color: PRIMARY, align: "center" });
-  s2.addText(item[1], { x, y: y + 0.6, w: 2.9, h: 0.45, fontSize: 11, fontFace: "Arial", color: GRAY, align: "center" });
+  const x = 0.5 + col * 3.2;
+  const y = 1.3 + row * 1.4;
+  s2.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.8, h: 1.1, fill: { color: i >= 4 && i <= 6 ? BLUE_LIGHT : GRAY_LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
+  s2.addText(item[0], { x, y: y + 0.08, w: 2.8, h: 0.45, fontSize: 22, fontFace: "Arial Black", color: PRIMARY, align: "center" });
+  s2.addText(item[1], { x, y: y + 0.55, w: 2.8, h: 0.4, fontSize: 11, fontFace: "Arial", color: GRAY, align: "center" });
 });
 
 // ========== Slide 3: 项目概述 ==========
@@ -79,12 +79,12 @@ const features = [
 features.forEach((f, i) => {
   const row = Math.floor(i / 3);
   const col = i % 3;
-  const x = 0.5 + col * 3.1;
+  const x = 0.5 + col * 3.2;
   const y = 1.3 + row * 2.0;
-  s3.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.9, h: 1.7, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
-  s3.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.9, h: 0.06, fill: { color: SECONDARY } });
-  s3.addText(f[0], { x: x + 0.15, y: y + 0.15, w: 2.6, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-  s3.addText(f[1], { x: x + 0.15, y: y + 0.55, w: 2.6, h: 1.0, fontSize: 11, fontFace: "Arial", color: GRAY });
+  s3.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.8, h: 1.7, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
+  s3.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.8, h: 0.06, fill: { color: SECONDARY } });
+  s3.addText(f[0], { x: x + 0.15, y: y + 0.15, w: 2.5, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+  s3.addText(f[1], { x: x + 0.15, y: y + 0.55, w: 2.5, h: 1.0, fontSize: 11, fontFace: "Arial", color: GRAY });
 });
 
 // ========== Slide 4: 系统架构 ==========
@@ -129,12 +129,12 @@ const modules = [
 modules.forEach((m, i) => {
   const row = Math.floor(i / 3);
   const col = i % 3;
-  const x = 0.5 + col * 3.1;
+  const x = 0.5 + col * 3.2;
   const y = 1.3 + row * 2.0;
-  s5.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.9, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+  s5.addShape(pres.shapes.RECTANGLE, { x, y, w: 2.8, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
   s5.addShape(pres.shapes.RECTANGLE, { x, y, w: 0.06, h: 1.7, fill: { color: SECONDARY } });
-  s5.addText(m[0], { x: x + 0.2, y: y + 0.15, w: 2.5, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-  s5.addText(m[1], { x: x + 0.2, y: y + 0.6, w: 2.5, h: 0.9, fontSize: 11, fontFace: "Arial", color: GRAY });
+  s5.addText(m[0], { x: x + 0.2, y: y + 0.15, w: 2.4, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+  s5.addText(m[1], { x: x + 0.2, y: y + 0.6, w: 2.4, h: 0.9, fontSize: 11, fontFace: "Arial", color: GRAY });
 });
 
 // ========== Slide 6: Bug修复 ==========
@@ -342,12 +342,12 @@ const plans = [
 plans.forEach((p, i) => {
   const col = i % 2;
   const row = Math.floor(i / 2);
-  const x = 0.5 + col * 4.7;
+  const x = 0.5 + col * 4.8;
   const y = 1.3 + row * 2.0;
-  s11.addShape(pres.shapes.RECTANGLE, { x, y, w: 4.5, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+  s11.addShape(pres.shapes.RECTANGLE, { x, y, w: 4.3, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
   s11.addShape(pres.shapes.RECTANGLE, { x, y, w: 0.06, h: 1.7, fill: { color: SECONDARY } });
-  s11.addText(p[0], { x: x + 0.2, y: y + 0.15, w: 4.1, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-  s11.addText(p[1], { x: x + 0.2, y: y + 0.6, w: 4.1, h: 0.9, fontSize: 11, fontFace: "Arial", color: GRAY });
+  s11.addText(p[0], { x: x + 0.2, y: y + 0.15, w: 3.9, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+  s11.addText(p[1], { x: x + 0.2, y: y + 0.6, w: 3.9, h: 0.9, fontSize: 11, fontFace: "Arial", color: GRAY });
 });
 
 // ========== Slide 12: Thank You ==========
