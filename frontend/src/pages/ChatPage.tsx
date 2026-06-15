@@ -123,13 +123,22 @@ export default function ChatPage() {
   // 发送消息
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
-      if (!currentConversationId) return
+      console.log('🚀 [sendMessage] 开始执行', {
+        conversationId: currentConversationId,
+        contentLength: content.length,
+        selectedFilesCount: selectedFiles.length
+      })
+      
+      if (!currentConversationId) {
+        console.error('❌ [sendMessage] 没有活跃的会话')
+        return
+      }
 
       // 先上传所有文件
       let fileIds: string[] = []
       if (selectedFiles.length > 0) {
+        console.log(`📎 [sendMessage] 开始上传 ${selectedFiles.length} 个文件...`)
         setUploadingFiles(true)
-        console.log(`📎 开始上传 ${selectedFiles.length} 个文件...`)
         
         try {
           // 并行上传所有文件以提升速度
@@ -147,18 +156,20 @@ export default function ChatPage() {
           })
           
           fileIds = await Promise.all(uploadPromises)
-          console.log(`✅ 全部文件上传成功！共 ${fileIds.length} 个文件，IDs:`, fileIds)
+          console.log(`✅ [sendMessage] 全部文件上传成功！共 ${fileIds.length} 个文件，IDs:`, fileIds)
           
           // 清空已选文件列表
           setSelectedFiles([])
         } catch (err) {
-          console.error('❌ 文件上传失败:', err)
+          console.error('❌ [sendMessage] 文件上传失败:', err)
           alert('文件上传失败，请重试')
           setUploadingFiles(false)
           throw err
         } finally {
           setUploadingFiles(false)
         }
+      } else {
+        console.log('📎 [sendMessage] 没有文件需要上传')
       }
 
       // 立即显示用户消息
@@ -273,9 +284,36 @@ export default function ChatPage() {
   // 选择文件
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files || files.length === 0) return
-    setSelectedFiles(prev => [...prev, ...Array.from(files)])
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    console.log('📁 [handleFileSelect] 文件选择事件触发', {
+      filesCount: files?.length || 0,
+      fileNames: files ? Array.from(files).map(f => f.name) : []
+    })
+    
+    if (!files || files.length === 0) {
+      console.warn('⚠️ [handleFileSelect] 没有选择任何文件')
+      return
+    }
+    
+    const newFiles = Array.from(files)
+    console.log('📁 [handleFileSelect] 添加文件到 selectedFiles', {
+      newFilesCount: newFiles.length,
+      newFiles: newFiles.map(f => ({ name: f.name, size: f.size, type: f.type }))
+    })
+    
+    setSelectedFiles(prev => {
+      const updated = [...prev, ...newFiles]
+      console.log('📁 [handleFileSelect] selectedFiles 状态已更新', {
+        prevCount: prev.length,
+        newCount: updated.length,
+        files: updated.map(f => f.name)
+      })
+      return updated
+    })
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+      console.log('📁 [handleFileSelect] 文件输入框已重置')
+    }
   }
 
   const removeFile = (index: number) => {
@@ -283,12 +321,33 @@ export default function ChatPage() {
   }
 
   const handleSend = () => {
-    if (!input.trim() || isStreaming || uploadingFiles) return
+    console.log('📤 [handleSend] 发送按钮被点击', {
+      input: input.trim().substring(0, 50),
+      isStreaming,
+      uploadingFiles,
+      selectedFilesCount: selectedFiles.length
+    })
+    
+    if (!input.trim() || isStreaming || uploadingFiles) {
+      console.warn('⚠️ [handleSend] 发送被阻止', {
+        reason: !input.trim() ? '输入为空' : isStreaming ? '正在流式输出' : '正在上传文件'
+      })
+      return
+    }
+    
     const content = input.trim()
+    console.log('📤 [handleSend] 准备发送消息', {
+      content: content.substring(0, 50) + '...',
+      hasFiles: selectedFiles.length > 0,
+      fileCount: selectedFiles.length
+    })
+    
     setInput('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
+    
+    console.log('📤 [handleSend] 调用 sendMessage.mutate()')
     sendMessage.mutate(content)
   }
 
