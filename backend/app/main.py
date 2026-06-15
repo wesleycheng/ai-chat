@@ -20,7 +20,7 @@ from .core.exceptions import (
 )
 from .api import api_router
 
-# 配置日志
+# 配置 structlog
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -87,19 +87,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(api_router, prefix="/api")
 
 
-# 全局异常处理
-from .core.exceptions import (
-    AppException,
-    validation_exception_handler,
-    pydantic_validation_handler,
-    sqlalchemy_handler,
-    http_status_error_handler,
-    generic_exception_handler,
-    RequestValidationError,
-    SQLAlchemyError,
-    HTTPStatusError,
-)
+# ===== 全局异常处理 =====
+from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
+from httpx import HTTPStatusError
 
 # 注册自定义异常
 app.add_exception_handler(AppException, app_exception_handler)
