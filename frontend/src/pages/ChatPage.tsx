@@ -7,11 +7,22 @@ import rehypeSanitize from 'rehype-sanitize'
 import {
   Send, Plus, Settings, FileText, Bot, LogOut,
   Paperclip, X, Menu, MessageSquare,
-  Trash2
+  Trash2, Loader2
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore } from '../stores/chatStore'
 import { conversationApi, configApi, agentApi, fileApi } from '../lib/api'
+
+// 打字指示器动画组件
+function TypingIndicator() {
+  return (
+    <div className="flex gap-1.5 items-center px-4 py-3">
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+    </div>
+  )
+}
 
 export default function ChatPage() {
   const navigate = useNavigate()
@@ -27,10 +38,12 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState<{ role: 'user'; content: string; files: File[] } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 获取会话列表
   const { data: conversations } = useQuery({
@@ -52,7 +65,7 @@ export default function ChatPage() {
   })
 
   // 获取当前会话消息
-  const { data: messages } = useQuery({
+  const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', currentConversationId],
     queryFn: () => currentConversationId
       ? conversationApi.getMessages(currentConversationId).then(r => r.data)
@@ -94,18 +107,23 @@ export default function ChatPage() {
         setUploadingFiles(true)
         try {
           for (const file of selectedFiles) {
-            console.log('上传文件:', file.name, file.size)
             const res = await fileApi.upload(file)
-            console.log('上传成功:', res.data.id)
             fileIds.push(res.data.id)
           }
         } catch (err) {
-          console.error('文件上传失败', err)
           throw err
         } finally {
           setUploadingFiles(false)
         }
       }
+
+      // 立即显示用户消息
+      setPendingMessage({ role: 'user', content, files: [...selectedFiles] })
+
+      // 开启流式状态 + 清空之前的流式内容
+      const { setIsStreaming, setStreamingContent, appendStreamingContent } = useChatStore.getState()
+      setIsStreaming(true)
+      setStreamingContent('')
 
       // 使用 fetch 进行 SSE 流式请求
       const response = await fetch(`/api/conversations/${currentConversationId}/chat`, {
@@ -123,6 +141,12 @@ export default function ChatPage() {
         }),
       })
 
+      if (!response.ok) {
+        setIsStreaming(false)
+        setPendingMessage(null)
+        throw new Error(`请求失败: ${response.status}`)
+      }
+
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
 
@@ -133,6 +157,8 @@ export default function ChatPage() {
           if (!reader) return
           const { done, value } = await reader.read()
           if (done) {
+            setIsStreaming(false)
+            setPendingMessage(null)
             queryClient.invalidateQueries({ queryKey: ['messages', currentConversationId] })
             resolve(fullContent)
             return
@@ -142,9 +168,18 @@ export default function ChatPage() {
           const lines = text.split('\n')
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.slice(6))
-              if (data.content) {
-                fullContent += data.content
+              try {
+                const data = JSON.parse(line.slice(6))
+                if (data.done) {
+                  // 流式结束
+                  continue
+                }
+                if (data.content) {
+                  fullContent += data.content
+                  appendStreamingContent(data.content)
+                }
+              } catch {
+                // 忽略解析错误
               }
             }
           }
@@ -155,13 +190,26 @@ export default function ChatPage() {
     },
     onSuccess: () => {
       setSelectedFiles([])
+      useChatStore.getState().setStreamingContent('')
+    },
+    onError: () => {
+      useChatStore.getState().setIsStreaming(false)
+      setPendingMessage(null)
     },
   })
 
   // 自动滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+  }, [messages, streamingContent, pendingMessage])
+
+  // 自动调整输入框高度
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 150) + 'px'
+    }
+  }, [input])
 
   // 移动端切换会话时关闭侧边栏
   useEffect(() => {
@@ -186,6 +234,9 @@ export default function ChatPage() {
     if (!input.trim() || isStreaming || uploadingFiles) return
     const content = input.trim()
     setInput('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
     sendMessage.mutate(content)
   }
 
@@ -200,6 +251,26 @@ export default function ChatPage() {
       setSidebarOpen(false)
     }
   }
+
+  // 合并显示的消息（包括待发送的用户消息和流式输出）
+  const displayMessages = () => {
+    const msgs: any[] = messages || []
+    const result: any[] = [...msgs]
+
+    // 如果有待发送的用户消息，添加到列表末尾
+    if (pendingMessage) {
+      result.push({
+        id: 'pending-user',
+        role: 'user',
+        content: pendingMessage.content,
+        created_at: new Date().toISOString(),
+      })
+    }
+
+    return result
+  }
+
+  const displayMsgs = displayMessages()
 
   // 侧边栏
   const Sidebar = () => (
@@ -350,53 +421,89 @@ export default function ChatPage() {
 
             {/* 消息列表 */}
             <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4">
-              {messages?.length === 0 && (
+              {messagesLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 size={24} className="animate-spin text-gray-400" />
+                </div>
+              ) : displayMsgs?.length === 0 ? (
                 <div className="text-center text-gray-400 py-12">
                   <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
                   <p>开始发送消息进行对话</p>
                 </div>
-              )}
-              {messages?.map((msg: any) => (
-                <div
-                  key={msg.id}
-                  className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-                >
-                  {/* 头像 */}
-                  <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    msg.role === 'user'
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}>
-                    {msg.role === 'user' ? (
-                      user?.username?.[0]?.toUpperCase() || 'U'
-                    ) : (
-                      <Bot size={16} />
-                    )}
-                  </div>
-
-                  {/* 消息内容 */}
+              ) : (
+                displayMsgs?.map((msg: any, index: number) => (
                   <div
-                    className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                      msg.role === 'user'
-                        ? 'bg-primary-600 text-white rounded-tr-md'
-                        : 'bg-white border border-gray-200 text-gray-800 rounded-tl-md'
-                    }`}
+                    key={msg.id || `temp-${index}`}
+                    className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
                   >
-                    {msg.role === 'user' ? (
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                    ) : (
-                      <div className="markdown-body prose prose-sm max-w-none">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeSanitize]}
-                        >
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
-                    )}
+                    {/* 头像 */}
+                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      msg.role === 'user'
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {msg.role === 'user' ? (
+                        user?.username?.[0]?.toUpperCase() || 'U'
+                      ) : (
+                        <Bot size={16} />
+                      )}
+                    </div>
+
+                    {/* 消息内容 */}
+                    <div
+                      className={`max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                        msg.role === 'user'
+                          ? 'bg-primary-600 text-white rounded-tr-md'
+                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-md'
+                      } ${msg.id === 'pending-user' ? 'opacity-70' : ''}`}
+                    >
+                      {msg.role === 'user' ? (
+                        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                      ) : (
+                        <div className="markdown-body prose prose-sm max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeSanitize]}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* 打字指示器 / 流式输出 */}
+              {isStreaming && !streamingContent && (
+                <div className="flex gap-3">
+                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium bg-gray-200 text-gray-600">
+                    <Bot size={16} />
+                  </div>
+                  <TypingIndicator />
+                </div>
+              )}
+
+              {/* 流式输出内容 */}
+              {streamingContent && (
+                <div className="flex gap-3">
+                  <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium bg-gray-200 text-gray-600">
+                    <Bot size={16} />
+                  </div>
+                  <div className="max-w-[85%] md:max-w-[75%] rounded-2xl px-4 py-2.5 bg-white border border-gray-200 text-gray-800 rounded-tl-md">
+                    <div className="markdown-body prose prose-sm max-w-none">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                      >
+                        {streamingContent}
+                      </ReactMarkdown>
+                      <span className="inline-block w-0.5 h-4 bg-primary-600 animate-pulse ml-0.5" />
+                    </div>
                   </div>
                 </div>
-              ))}
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -502,7 +609,7 @@ export default function ChatPage() {
               )}
 
               {/* 输入框 */}
-              <div className="flex gap-2 md:gap-3">
+              <div className="flex gap-2 md:gap-3 items-end">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -513,20 +620,26 @@ export default function ChatPage() {
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFiles}
+                  disabled={uploadingFiles || isStreaming}
                   className="shrink-0 p-2.5 md:p-2 border rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
                   title="选择文件"
                 >
                   <Paperclip size={20} className={uploadingFiles ? 'animate-pulse' : ''} />
                 </button>
-                <input
-                  type="text"
+                <textarea
+                  ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder={uploadingFiles ? "上传文件中..." : "输入消息..."}
-                  className="flex-1 px-4 py-2.5 md:py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm md:text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend()
+                    }
+                  }}
+                  placeholder={uploadingFiles ? "上传文件中..." : "输入消息...（Enter 发送）"}
+                  className="flex-1 px-4 py-2.5 md:py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm md:text-base resize-none overflow-hidden"
                   disabled={isStreaming || uploadingFiles}
+                  rows={1}
                 />
                 <button
                   onClick={handleSend}
@@ -534,7 +647,7 @@ export default function ChatPage() {
                   className="shrink-0 p-2.5 md:p-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors"
                 >
                   {uploadingFiles ? (
-                    <span className="text-sm">上传中</span>
+                    <Loader2 size={20} className="animate-spin" />
                   ) : (
                     <Send size={20} />
                   )}

@@ -170,6 +170,7 @@ class ChatRequest(BaseModel):
     content: str = Field(..., min_length=1)
     file_ids: Optional[List[str]] = []
     model_id: Optional[str] = Field(None, alias="model_id")
+    agent_id: Optional[str] = Field(None, alias="agent_id")
     stream: bool = False
 
 

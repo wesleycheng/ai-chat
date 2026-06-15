@@ -170,12 +170,13 @@ async def chat(
     if not model:
         raise HTTPException(status_code=400, detail="没有可用的模型配置")
 
-    # 获取 Agent（如果有）
+    # 获取 Agent（如果有）- 优先使用请求中的 agent_id，其次使用会话的 agent_id
     agent = None
-    if conversation.agent_id:
+    agent_id = data.agent_id or conversation.agent_id
+    if agent_id:
         result = await db.execute(
             select(Agent).where(
-                Agent.id == conversation.agent_id,
+                Agent.id == agent_id,
                 Agent.is_active == True,
             )
         )
