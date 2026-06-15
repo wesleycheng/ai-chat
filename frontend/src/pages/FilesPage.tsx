@@ -13,7 +13,7 @@ export default function FilesPage() {
 
   const { data: files, isLoading } = useQuery({
     queryKey: ['files'],
-    queryFn: () => fileApi.list().then(r => r.data),
+    queryFn: () => fileApi.list().then(r => r.data?.data?.items ?? []),
   })
 
   const deleteFile = useMutation({

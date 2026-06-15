@@ -23,7 +23,7 @@ export default function SettingsPage() {
 
   const { data: models, isLoading } = useQuery({
     queryKey: ['models'],
-    queryFn: () => configApi.listModels().then(r => r.data),
+    queryFn: () => configApi.listModels().then(r => r.data?.data?.items ?? []),
   })
 
   const addModel = useMutation({

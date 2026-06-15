@@ -40,12 +40,12 @@ export default function AgentsPage() {
   // Queries
   const { data: agents, isLoading } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => agentApi.list().then(r => r.data),
+    queryFn: () => agentApi.list().then(r => r.data?.data?.items ?? []),
   })
 
   const { data: models } = useQuery({
     queryKey: ['models'],
-    queryFn: () => configApi.listModels().then(r => r.data),
+    queryFn: () => configApi.listModels().then(r => r.data?.data?.items ?? []),
   })
 
   // Mutations

@@ -46,22 +46,21 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // 获取会话列表
-  const { data: conversations } = useQuery({
+  const { data: conversations = [] } = useQuery({
     queryKey: ['conversations'],
-    queryFn: () => conversationApi.list().then(r => r.data),
+    queryFn: () => conversationApi.list().then(r => r.data?.data?.items ?? []),
   })
 
   // 获取模型列表
-  const { data: modelsData } = useQuery({
+  const { data: models = [] } = useQuery({
     queryKey: ['models'],
-    queryFn: () => configApi.listModels().then(r => r.data),
+    queryFn: () => configApi.listModels().then(r => r.data?.data?.items ?? []),
   })
-  const models = modelsData
 
   // 获取Agent列表
-  const { data: agents } = useQuery({
+  const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
-    queryFn: () => agentApi.list().then(r => r.data),
+    queryFn: () => agentApi.list().then(r => r.data?.data?.items ?? []),
   })
 
   // 更新会话的Agent（当切换Agent时）
@@ -92,7 +91,7 @@ export default function ChatPage() {
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', currentConversationId],
     queryFn: () => currentConversationId
-      ? conversationApi.getMessages(currentConversationId).then(r => r.data)
+      ? conversationApi.getMessages(currentConversationId).then(r => r.data?.data?.items ?? [])
       : [],
     enabled: !!currentConversationId,
   })

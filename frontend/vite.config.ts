@@ -5,6 +5,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   build: {
+    sourcemap: true,
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
