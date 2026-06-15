@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
 import json
-import uuid
+from uuid import UUID
 import logging
 
 from ..core import get_db
