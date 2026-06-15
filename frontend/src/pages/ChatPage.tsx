@@ -37,6 +37,9 @@ export default function ChatPage() {
 
   const [input, setInput] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const selectedFilesRef = useRef<File[]>([])
+  // 同步 state 到 ref，避免 useMutation 闭包陷阱
+  useEffect(() => { selectedFilesRef.current = selectedFiles }, [selectedFiles])
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<{ role: 'user'; content: string; files: File[] } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -122,10 +125,11 @@ export default function ChatPage() {
   // 发送消息
   const sendMessage = useMutation({
     mutationFn: async (content: string) => {
+      const currentFiles = selectedFilesRef.current
       console.log('🚀 [sendMessage] 开始执行', {
         conversationId: currentConversationId,
         contentLength: content.length,
-        selectedFilesCount: selectedFiles.length
+        selectedFilesCount: currentFiles.length
       })
       
       if (!currentConversationId) {
@@ -135,13 +139,13 @@ export default function ChatPage() {
 
       // 先上传所有文件
       let fileIds: string[] = []
-      if (selectedFiles.length > 0) {
-        console.log(`📎 [sendMessage] 开始上传 ${selectedFiles.length} 个文件...`)
+      if (currentFiles.length > 0) {
+        console.log(`📎 [sendMessage] 开始上传 ${currentFiles.length} 个文件...`)
         setUploadingFiles(true)
         
         try {
           // 并行上传所有文件以提升速度
-          const uploadPromises = selectedFiles.map(async (file, index) => {
+          const uploadPromises = currentFiles.map(async (file, index) => {
             console.log(`📤 [${index + 1}/${selectedFiles.length}] 正在上传: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`)
             try {
               const res = await fileApi.upload(file)
@@ -169,10 +173,11 @@ export default function ChatPage() {
         }
       } else {
         console.log('📎 [sendMessage] 没有文件需要上传')
+        fileIds = []
       }
 
       // 立即显示用户消息
-      setPendingMessage({ role: 'user', content, files: [...selectedFiles] })
+      setPendingMessage({ role: 'user', content, files: [...currentFiles] })
 
       // 开启流式状态 + 清空之前的流式内容
       const { setIsStreaming, setStreamingContent, appendStreamingContent } = useChatStore.getState()
