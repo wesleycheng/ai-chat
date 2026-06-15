@@ -45,8 +45,8 @@ frontend/dist/
 frontend/build/
 
 # 测试覆盖率
-htmlcov/
-.coverage
+# htmlcov/
+# .coverage
 .pytest_cache/
 
 # Docker

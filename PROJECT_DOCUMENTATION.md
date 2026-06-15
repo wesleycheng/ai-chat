@@ -1672,6 +1672,194 @@ VITE_WS_URL=http://localhost:8000
 
 ---
 
-**文档版本**：v2.0  
-**最后更新**：2026-05-30 21:30  
-**文档状态**：✅ 已完成（添加完整API接口文档和代码仓库信息）
+---
+
+## 13. 单元测试体系
+
+### 13.1 测试框架
+
+**测试工具链**：
+- **pytest** — 测试框架
+- **pytest-asyncio** — 异步测试支持
+- **pytest-cov** — 覆盖率报告
+- **httpx** — 异步 HTTP 测试客户端
+
+**测试数据库**：SQLite 内存数据库（测试隔离，不污染生产数据）
+
+### 13.2 测试文件结构
+
+```
+tests/
+├── conftest.py          # 公共 fixtures（测试引擎、会话、客户端）
+├── core/
+│   └── test_security.py # 密码安全 + JWT Token 测试（10项）
+├── api/
+│   ├── test_auth.py     # 认证 API 测试
+│   ├── test_config.py   # 模型配置 API 测试
+│   └── test_agents.py   # Agent API 测试
+├── models/
+│   └── test_models.py   # 数据库模型测试
+└── services/            # 服务层测试（待补充）
+```
+
+### 13.3 测试用例详情
+
+**密码安全测试 (4项)**：
+- 密码哈希生成（$2b$ 格式，60字符长度）
+- 密码验证成功
+- 密码验证失败
+- 相同密码产生不同哈希（bcrypt 随机盐）
+
+**Access Token 测试 (3项)**：
+- Token 创建与格式验证
+- 带过期时间的 Token 创建
+- Token 解码成功/失败
+
+**Refresh Token 测试 (2项)**：
+- 刷新 Token 创建与类型验证
+- 刷新 Token 寿命 > Access Token
+
+**API 接口测试 (15+项)**：
+- 用户注册（成功/重复用户名/无效邮箱）
+- 用户登录（成功/错误密码/不存在用户）
+- Token 刷新（成功/无效 Token）
+- 获取当前用户（成功/无 Token）
+- 模型配置 CRUD + 权限验证
+- Agent CRUD + 权限验证
+
+### 13.4 覆盖率配置
+
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = [
+    "--strict-markers",
+    "--cov=app",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=55",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*", "*/venv/*", "*/.venv/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+```
+
+**当前覆盖率**：58%（目标 80%+）
+
+**报告格式**：
+- 终端输出：`pytest --cov=app --cov-report=term-missing`
+- HTML 报告：`htmlcov/index.html`
+- XML 报告：`coverage.xml`（用于 CI/CD 集成）
+
+### 13.5 测试运行示例
+
+```
+$ pytest --cov=app
+
+tests/core/test_security.py::TestPasswordSecurity::test_hash_password PASSED
+ tests/core/test_security.py::TestPasswordSecurity::test_verify_password_success PASSED
+ tests/core/test_security.py::TestPasswordSecurity::test_verify_password_failure PASSED
+ tests/core/test_security.py::TestPasswordSecurity::test_same_password_different_hash PASSED
+ tests/core/test_security.py::TestAccessToken::test_create_access_token PASSED
+ tests/core/test_security.py::TestAccessToken::test_create_access_token_with_ttl PASSED
+ tests/core/test_security.py::TestAccessToken::test_decode_token_success PASSED
+ tests/core/test_security.py::TestAccessToken::test_decode_token_failure PASSED
+ tests/core/test_security.py::TestRefreshToken::test_create_refresh_token PASSED
+ tests/core/test_security.py::TestRefreshToken::test_refresh_token_longer_lived PASSED
+
+---------- coverage: platform linux ----------
+Name                              Stmts   Miss  Cover
+-----------------------------------------------------
+app/core/security.py                 42      5    88%
+app/core/config.py                   25      8    68%
+app/api/chat.py                      65     30    54%
+...
+-----------------------------------------------------
+TOTAL                               520    218    58%
+```
+
+---
+
+## 14. 日志系统
+
+### 14.1 日志架构
+
+**双通道输出**：
+- **控制台**：INFO 级别，实时查看运行状态
+- **文件**：DEBUG 级别，按日期命名 `logs/app_YYYYMMDD.log`
+
+**第三方库静默**：
+- `uvicorn.access` → WARNING
+- `httpx` → WARNING
+
+### 14.2 日志格式
+
+```
+2026-06-15 11:30:00 - app.services.chat_service - INFO - [ChatService] 加载文件: report.pdf
+2026-06-15 11:30:00 - app.api.chat - INFO - [Chat] Agent: 代码助手, prompt前100字: 你是一个专业的...
+2026-06-15 11:30:01 - app.api.files - INFO - [FileAPI] 文件上传成功: report.pdf (2.3 MB)
+2026-06-15 11:30:01 - app.services.chat_service - DEBUG - [ChatService] 文件内容: 3200 字符
+```
+
+### 14.3 日志辅助函数
+
+```python
+from app.core.logging import logger, log_request, log_error, log_debug, log_warning
+
+# 请求日志
+log_request(request, response_status)
+# → INFO: POST /api/conversations/xxx/chat - 200
+
+# 错误日志
+log_error("文件解析失败", exc_info=exception)
+# → ERROR: 文件解析失败
+#    Traceback: ...
+
+# 调试日志（仅写入文件）
+log_debug(f"Token payload: {payload}")
+# → DEBUG: Token payload: {'sub': 'user123', ...}
+
+# 警告日志
+log_warning("Redis 连接超时，使用备用缓存")
+# → WARNING: Redis 连接超时，使用备用缓存
+```
+
+### 14.4 业务日志标签
+
+| 标签 | 模块 | 用途 |
+|------|------|------|
+| `[Chat]` | chat.py | 聊天请求处理、Agent 加载 |
+| `[ChatService]` | chat_service.py | 消息构建、文件加载、流式输出 |
+| `[FileAPI]` | files.py | 文件上传、解析、删除 |
+| `[Auth]` | auth.py | 用户注册、登录、Token 刷新 |
+
+### 14.5 配置
+
+```python
+# .env
+LOG_LEVEL=INFO  # 控制台级别（可切换为 DEBUG）
+
+# 日志文件自动创建
+logs/
+├── app_20260615.log
+├── app_20260614.log
+└── app_20260613.log
+```
+
+---
+
+**文档版本**：v3.0  
+**最后更新**：2026-06-15  
+**文档状态**：✅ 已完成（添加单元测试、覆盖率报告、日志系统文档）
