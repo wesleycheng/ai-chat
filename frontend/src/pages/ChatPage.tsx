@@ -130,11 +130,16 @@ export default function ChatPage() {
       if (selectedFiles.length > 0) {
         setUploadingFiles(true)
         try {
-          for (const file of selectedFiles) {
+          // 并行上传所有文件以提升速度
+          const uploadPromises = selectedFiles.map(async (file) => {
             const res = await fileApi.upload(file)
-            fileIds.push(res.data.id)
-          }
+            return res.data.id
+          })
+          fileIds = await Promise.all(uploadPromises)
+          console.log(`✅ 成功上传 ${fileIds.length} 个文件`, fileIds)
         } catch (err) {
+          console.error('❌ 文件上传失败:', err)
+          setUploadingFiles(false)
           throw err
         } finally {
           setUploadingFiles(false)
@@ -611,28 +616,39 @@ export default function ChatPage() {
 
             {/* 输入区 */}
             <div className="bg-white border-t p-3 md:p-4">
-              {/* 已选文件列表 */}
+              {/* 已选文件列表 - 优化显示 */}
               {selectedFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {selectedFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 text-sm rounded-lg"
-                    >
-                      <FileText size={14} />
-                      <span className="max-w-[100px] md:max-w-[150px] truncate">{file.name}</span>
-                      <button
-                        onClick={() => removeFile(index)}
-                        className="hover:text-blue-900"
+                <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                  <div className="flex items-center gap-2 mb-2 text-sm text-blue-700 font-medium">
+                    <FileText size={16} />
+                    <span>📎 已选择 {selectedFiles.length} 个文件</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="group flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-200 shadow-sm hover:shadow-md transition-all cursor-default"
                       >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
+                        <FileText size={16} className="text-blue-500 shrink-0" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-medium text-gray-800 truncate max-w-[120px] md:max-w-[200px]">{file.name}</span>
+                          <span className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</span>
+                        </div>
+                        <button
+                          onClick={() => removeFile(index)}
+                          className="shrink-0 p-1 hover:bg-red-50 rounded-full transition-colors text-gray-400 hover:text-red-500"
+                          title="移除文件"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-blue-600">✨ 文件内容将结合到AI回答中</p>
                 </div>
               )}
 
-              {/* 输入框 */}
+              {/* 输入框区域 */}
               <div className="flex gap-2 md:gap-3 items-end">
                 <input
                   ref={fileInputRef}
@@ -645,10 +661,14 @@ export default function ChatPage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingFiles || isStreaming}
-                  className="shrink-0 p-2.5 md:p-2 border rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                  title="选择文件"
+                  className={`shrink-0 p-2.5 md:p-2 border rounded-xl transition-all ${
+                    uploadingFiles || isStreaming 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
+                  }`}
+                  title="📎 选择文件（支持 PDF/DOCX/XLSX/TXT/MD）"
                 >
-                  <Paperclip size={20} className={uploadingFiles ? 'animate-pulse' : ''} />
+                  <Paperclip size={20} className={uploadingFiles ? 'animate-bounce' : ''} />
                 </button>
                 <textarea
                   ref={textareaRef}
@@ -660,20 +680,43 @@ export default function ChatPage() {
                       handleSend()
                     }
                   }}
-                  placeholder={uploadingFiles ? "上传文件中..." : "输入消息...（Enter 发送）"}
-                  className="flex-1 px-4 py-2.5 md:py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm md:text-base resize-none overflow-hidden"
+                  placeholder={
+                    uploadingFiles 
+                      ? "⏳ 正在上传文件，请稍候..." 
+                      : isStreaming 
+                        ? "🤖 AI正在思考中..." 
+                        : selectedFiles.length > 0 
+                          ? "✨ 已选择文件，发送消息将上传并结合到AI回答中..." 
+                          : "💬 输入消息...（Enter 发送，Shift+Enter 换行）"
+                  }
+                  className="flex-1 px-4 py-2.5 md:py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm md:text-base resize-none overflow-hidden transition-all"
                   disabled={isStreaming || uploadingFiles}
                   rows={1}
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || isStreaming || uploadingFiles}
-                  className="shrink-0 p-2.5 md:p-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                  className={`shrink-0 p-2.5 md:p-3 rounded-xl transition-all font-medium ${
+                    !input.trim() || isStreaming || uploadingFiles
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 shadow-lg hover:shadow-xl'
+                  }`}
                 >
                   {uploadingFiles ? (
-                    <Loader2 size={20} className="animate-spin" />
+                    <div className="flex items-center gap-1">
+                      <Loader2 size={20} className="animate-spin" />
+                      <span className="hidden sm:inline text-sm">上传</span>
+                    </div>
+                  ) : isStreaming ? (
+                    <div className="flex items-center gap-1">
+                      <Loader2 size={20} className="animate-spin" />
+                      <span className="hidden sm:inline text-sm">思考</span>
+                    </div>
                   ) : (
-                    <Send size={20} />
+                    <div className="flex items-center gap-1">
+                      <Send size={20} />
+                      <span className="hidden sm:inline text-sm">发送</span>
+                    </div>
                   )}
                 </button>
               </div>

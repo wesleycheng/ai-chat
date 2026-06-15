@@ -82,11 +82,33 @@ class ChatService:
         file_contents = await self._get_file_contents(file_ids)
         
         if file_contents:
-            file_section = "\n\n---\n\n【文件参考】以下是用户提供的文件内容，请结合这些内容准确回答用户的问题：\n\n"
-            for filename, content in file_contents:
-                file_section += f"### 📄 文件：{filename}\n```\n{content}\n```\n\n"
+            logger.info(f"[ChatService] 检测到用户上传了 {len(file_contents)} 个文件，开始整合到系统提示词")
+            
+            # 构建更结构化的文件内容部分
+            file_section = "\n\n" + "="*60 + "\n"
+            file_section += "📎 【用户上传的文件内容】\n"
+            file_section += "="*60 + "\n\n"
+            file_section += "你必须仔细阅读以下文件内容，并结合它们来回答用户的问题。\n"
+            file_section += "如果文件内容与问题相关，请引用具体的文字和数据。\n\n"
+            
+            for idx, (filename, content) in enumerate(file_contents, 1):
+                # 截断过长的文件内容（保留前8000个字符）
+                truncated_content = content[:8000] + "...（内容已截断）" if len(content) > 8000 else content
+                
+                file_section += f"\n【文件 {idx}】{filename}\n"
+                file_section += "-" * 40 + "\n"
+                file_section += f"{truncated_content}\n"
+                file_section += "-" * 40 + "\n\n"
+            
+            file_section += "="*60 + "\n"
+            file_section += "📌 重要提示：\n"
+            file_section += "- 请结合以上文件内容准确回答用户的问题\n"
+            file_section += "- 如果文件中有相关数据或信息，请引用它们\n"
+            file_section += "- 如果文件中没有相关信息，请基于通用知识回答\n"
+            file_section += "="*60 + "\n"
+            
             system_prompt += file_section
-            logger.info(f"[ChatService] 添加了 {len(file_contents)} 个文件内容到上下文")
+            logger.info(f"[ChatService] 成功添加 {len(file_contents)} 个文件内容到上下文，总长度: {len(file_section)} 字符")
         
         # ============================================
         # 将系统提示词作为第一条消息
@@ -119,7 +141,10 @@ class ChatService:
     ) -> List[Tuple[str, str]]:
         """获取文件内容"""
         if not file_ids:
+            logger.debug("[ChatService] 未提供file_ids，跳过文件处理")
             return []
+        
+        logger.info(f"[ChatService] 开始处理 {len(file_ids)} 个文件")
         
         from ..models.models import File as DBFile, FileStatus
         from ..api.files import parse_file_content
@@ -133,20 +158,32 @@ class ChatService:
             db_file = result.scalar_one_or_none()
             
             if not db_file:
+                logger.warning(f"[ChatService] 文件未找到，file_id: {fid_str}")
                 continue
+            
+            logger.info(f"[ChatService] 加载文件: {db_file.filename} ({db_file.file_ext})")
             
             if db_file.file_path:
                 # 如果已有解析内容直接用
                 if db_file.content_text:
+                    content_length = len(db_file.content_text)
+                    logger.info(f"[ChatService] 使用已缓存的文件内容，长度: {content_length} 字符")
                     results.append((db_file.filename, db_file.content_text))
                 elif db_file.parse_status == FileStatus.PENDING:
                     # 实时解析
+                    logger.info(f"[ChatService] 实时解析文件: {db_file.filename}")
                     content = await parse_file_content(db_file.file_path, db_file.file_ext)
                     if content:
                         db_file.content_text = content
                         db_file.parse_status = FileStatus.COMPLETED
                         await self.db.commit()
                         results.append((db_file.filename, content))
+                        logger.info(f"[ChatService] 文件解析成功: {db_file.filename}, 内容长度: {len(content)} 字符")
+        
+        if results:
+            logger.info(f"[ChatService] 文件处理完成，共 {len(results)} 个文件加载到上下文")
+        else:
+            logger.warning("[ChatService] 文件处理完成，但未能加载任何文件内容")
         
         return results
     
