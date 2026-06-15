@@ -64,6 +64,30 @@ export default function ChatPage() {
     queryFn: () => agentApi.list().then(r => r.data),
   })
 
+  // 更新会话的Agent（当切换Agent时）
+  const updateConversationAgent = useMutation({
+    mutationFn: ({ id, agent_id }: { id: string; agent_id: string | null }) =>
+      conversationApi.update(id, { agent_id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+    },
+  })
+
+  // 监听Agent切换，自动更新会话
+  useEffect(() => {
+    if (currentConversationId && selectedAgentId) {
+      // 获取当前会话
+      const conversation = conversations?.find((c: any) => c.id === currentConversationId)
+      // 如果会话的agent_id与当前选择的不同，则更新
+      if (conversation && conversation.agent_id !== selectedAgentId) {
+        updateConversationAgent.mutate({
+          id: currentConversationId,
+          agent_id: selectedAgentId,
+        })
+      }
+    }
+  }, [selectedAgentId, currentConversationId])
+
   // 获取当前会话消息
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ['messages', currentConversationId],

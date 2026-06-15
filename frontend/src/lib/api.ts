@@ -44,6 +44,7 @@ export const conversationApi = {
   list: () => api.get('/conversations'),
   create: (data: any) => api.post('/conversations', data),
   getMessages: (id: string) => api.get(`/conversations/${id}/messages`),
+  update: (id: string, data: any) => api.put(`/conversations/${id}`, data),
   delete: (id: string) => api.delete(`/conversations/${id}`),
   chat: (id: string, data: any) => api.post(`/conversations/${id}/chat`, data),
 }

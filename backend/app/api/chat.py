@@ -6,6 +6,7 @@ from sqlalchemy import select, desc
 from typing import List, Optional
 import json
 import uuid
+import logging
 
 from ..core import get_db
 from ..models import User, Conversation, Message, ModelConfig, Agent
@@ -17,6 +18,7 @@ from .auth import get_current_user
 from ..services.chat_service import ChatService
 
 router = APIRouter(prefix="/conversations", tags=["对话"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=List[ConversationResponse])
@@ -174,6 +176,7 @@ async def chat(
     agent = None
     agent_id = data.agent_id or conversation.agent_id
     if agent_id:
+        logger.info(f"[Chat] 查找Agent，agent_id: {agent_id}")
         result = await db.execute(
             select(Agent).where(
                 Agent.id == agent_id,
@@ -181,6 +184,12 @@ async def chat(
             )
         )
         agent = result.scalar_one_or_none()
+        if agent:
+            logger.info(f"[Chat] Agent加载成功: {agent.name}, system_prompt: {agent.system_prompt[:100]}...")
+        else:
+            logger.warning(f"[Chat] Agent未找到或已禁用，agent_id: {agent_id}")
+    else:
+        logger.info("[Chat] 未指定Agent，使用默认行为")
 
     # 保存用户消息
     user_message = Message(

@@ -1,0 +1,54 @@
+=== AI Chat Platform 后端测试输出示例 ===
+
+1. 运行单元测试：
+$ cd backend
+$ export PATH="/Users/wesleycheng/Library/Python/3.9/bin:$PATH"
+$ python3 -m pytest tests/core/test_security.py -v
+
+============================= test session starts ==============================
+platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0
+rootdir: /Users/wesleycheng/Documents/ai-chat-platform/backend
+configfile: pyproject.toml
+plugins: anyio-4.12.1, asyncio-1.2.0, cov-7.1.0
+
+collected 10 items
+
+tests/core/test_security.py::TestPasswordSecurity::test_hash_password PASSED [ 10%]
+tests/core/test_security.py::TestPasswordSecurity::test_verify_password_success PASSED [ 20%]
+tests/core/test_security.py::TestPasswordSecurity::test_verify_password_failure PASSED [ 30%]
+tests/core/test_security.py::TestPasswordSecurity::test_same_password_different_hash PASSED [ 40%]
+tests/core/test_security.py::TestAccessToken::test_create_access_token PASSED [ 50%]
+tests/core/test_security.py::TestAccessToken::test_create_access_token_with_ttl PASSED [ 60%]
+tests/core/test_security.py::TestAccessToken::test_decode_token_success PASSED [ 70%]
+tests/core/test_security.py::TestAccessToken::test_decode_token_failure PASSED [ 80%]
+tests/core/test_security.py::TestRefreshToken::test_create_refresh_token PASSED [ 90%]
+tests/core/test_security.py::TestRefreshToken::test_refresh_token_longer_lived PASSED [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.9.6-final-0 ________________
+
+Name                           Stmts   Miss  Cover   Missing
+------------------------------------------------------------
+app/core/security.py              72     28    61%   73, 78, 83-85, 94-132, 140-146
+app/core/config.py                44      4    91%   64-67
+...
+
+TOTAL                           1025    432    58%
+Coverage HTML written to dir htmlcov
+Coverage XML written to file coverage.xml
+Required test coverage of 55% reached. Total coverage: 57.85%
+======================== 10 passed, 2 warnings in 2.28s ========================
+
+
+2. 查看 HTML 覆盖率报告：
+$ open htmlcov/index.html
+
+
+3. 查看 XML 覆盖率报告：
+$ cat coverage.xml | head -50
+
+
+4. 日志输出示例（当应用运行时）：
+2026-06-15 11:45:23 - uvicorn.access - INFO - POST /api/auth/login - 200
+2026-06-15 11:45:23 - app.core.logging - DEBUG - Processing request...
+2026-06-15 11:45:24 - app.core.logging - ERROR - Database connection failed
