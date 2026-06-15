@@ -146,13 +146,15 @@ export default function ChatPage() {
         try {
           // 并行上传所有文件以提升速度
           const uploadPromises = currentFiles.map(async (file, index) => {
-            console.log(`📤 [${index + 1}/${selectedFiles.length}] 正在上传: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`)
+            console.log(`📤 [${index + 1}/${currentFiles.length}] 正在上传: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`)
             try {
               const res = await fileApi.upload(file)
-              console.log(`✅ [${index + 1}/${selectedFiles.length}] 上传成功: ${file.name} → ID: ${res.data.id}`)
-              return res.data.id
+              const fileId = res.data?.data?.id
+              console.log(`✅ [${index + 1}/${currentFiles.length}] 上传成功: ${file.name} → ID: ${fileId}`, res.data)
+              if (!fileId) throw new Error(`服务器未返回文件ID: ${JSON.stringify(res.data)}`)
+              return fileId
             } catch (uploadError: any) {
-              console.error(`❌ [${index + 1}/${selectedFiles.length}] 上传失败: ${file.name}`, uploadError)
+              console.error(`❌ [${index + 1}/${currentFiles.length}] 上传失败: ${file.name}`, uploadError)
               console.error('错误详情:', uploadError.response?.data || uploadError.message)
               throw uploadError
             }
