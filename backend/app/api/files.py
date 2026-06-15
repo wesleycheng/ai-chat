@@ -4,12 +4,17 @@ from datetime import datetime
 from typing import List, Optional
 
 import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
 from ..core.security import get_current_user
+from ..core.exceptions import (
+    NotFoundException,
+    ValidationException,
+    APIResponse,
+)
 from ..models.models import File as DBFile, FileStatus, User
 from ..schemas.schemas import FileCreate, FileResponse, FileListResponse
 
@@ -44,7 +49,10 @@ async def validate_file(file: UploadFile) -> str:
     await file.seek(0)
     
     if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail=f"文件大小超过 {MAX_FILE_SIZE / 1024 / 1024}MB 限制")
+        raise ValidationException(
+            message=f"文件大小超过 {MAX_FILE_SIZE / 1024 / 1024}MB 限制",
+            details={"max_size_mb": 10, "actual_size_mb": round(len(contents) / 1024 / 1024, 2)}
+        )
     
     # 先尝试从文件名获取扩展名
     ext = get_extension_from_filename(file.filename)
@@ -61,7 +69,11 @@ async def validate_file(file: UploadFile) -> str:
             pass
     
     if not ext:
-        raise HTTPException(status_code=400, detail="不支持的文件类型，支持：pdf/docx/xlsx/txt/md/jpg/png")
+        allowed_types = ", ".join(ALLOWED_EXTENSIONS.keys())[1:].replace(".", "")
+        raise ValidationException(
+            message=f"不支持的文件类型",
+            details={"allowed": list(ALLOWED_EXTENSIONS.keys()), "received": file.filename}
+        )
     
     return ext
 
@@ -117,52 +129,31 @@ async def parse_xlsx(file_path: str) -> str:
     return "\n".join(parts)
 
 
-@router.post("/upload", response_model=FileResponse)
+@router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """上传文件并立即解析内容"""
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    logger.info(f"[FileAPI] 开始上传文件: {file.filename}, 大小: {file.size if hasattr(file, 'size') else 'unknown'}, MIME: {file.content_type}")
-    
     # 验证文件
-    try:
-        ext = await validate_file(file)
-        logger.info(f"[FileAPI] 文件验证通过，扩展名: {ext}")
-    except HTTPException as e:
-        logger.error(f"[FileAPI] 文件验证失败: {e.detail}")
-        raise
-    except Exception as e:
-        logger.error(f"[FileAPI] 文件验证异常: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+    ext = await validate_file(file)
     
     # 生成文件路径
     file_id = str(uuid.uuid4())
     upload_dir = os.getenv("UPLOAD_DIR", "./uploads")
     file_path = os.path.join(upload_dir, f"{file_id}{ext}")
     
-    logger.info(f"[FileAPI] 生成文件ID: {file_id}, 存储路径: {file_path}")
-    
     # 确保目录存在
     os.makedirs(upload_dir, exist_ok=True)
-    logger.info(f"[FileAPI] 上传目录已准备: {upload_dir}")
     
     # 保存文件
     contents = await file.read()
-    logger.info(f"[FileAPI] 文件内容已读取，大小: {len(contents)} bytes")
-    
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(contents)
-    logger.info(f"[FileAPI] 文件已保存到: {file_path}")
     
     # 立即解析文件内容
-    logger.info(f"[FileAPI] 开始解析文件内容...")
     content_text = await parse_file_content(file_path, ext)
-    logger.info(f"[FileAPI] 文件解析完成，内容长度: {len(content_text) if content_text else 0} 字符")
     
     # 创建数据库记录
     db_file = DBFile(
@@ -179,12 +170,19 @@ async def upload_file(
     await db.commit()
     await db.refresh(db_file)
     
-    logger.info(f"[FileAPI] 文件记录已创建，ID: {file_id}, 用户: {current_user.username}, 状态: {db_file.parse_status}")
-    
-    return db_file
+    return APIResponse.success(
+        data={
+            "id": db_file.id,
+            "filename": db_file.filename,
+            "file_ext": db_file.file_ext,
+            "file_size": db_file.file_size,
+            "parse_status": db_file.parse_status.value if hasattr(db_file.parse_status, 'value') else str(db_file.parse_status),
+        },
+        message="文件上传成功"
+    )
 
 
-@router.get("", response_model=FileListResponse)
+@router.get("")
 async def list_files(
     skip: int = 0,
     limit: int = 20,
@@ -201,10 +199,25 @@ async def list_files(
     count_result = await db.execute(count_stmt)
     total = count_result.scalar_one()
     
-    return {"items": files, "total": total}
+    return APIResponse.success(
+        data={
+            "items": [
+                {
+                    "id": f.id,
+                    "filename": f.filename,
+                    "file_ext": f.file_ext,
+                    "file_size": f.file_size,
+                    "parse_status": f.parse_status.value if hasattr(f.parse_status, 'value') else str(f.parse_status),
+                    "created_at": f.created_at.isoformat() if f.created_at else None,
+                }
+                for f in files
+            ],
+            "total": total,
+        }
+    )
 
 
-@router.get("/{file_id}", response_model=FileResponse)
+@router.get("/{file_id}")
 async def get_file(
     file_id: str,
     db: AsyncSession = Depends(get_db),
@@ -216,9 +229,19 @@ async def get_file(
     file = result.scalar_one_or_none()
     
     if not file:
-        raise HTTPException(status_code=404, detail="文件不存在")
+        raise NotFoundException(message="文件不存在", details={"file_id": file_id})
     
-    return file
+    return APIResponse.success(
+        data={
+            "id": file.id,
+            "filename": file.filename,
+            "file_ext": file.file_ext,
+            "file_size": file.file_size,
+            "parse_status": file.parse_status.value if hasattr(file.parse_status, 'value') else str(file.parse_status),
+            "content_text": file.content_text,
+            "created_at": file.created_at.isoformat() if file.created_at else None,
+        }
+    )
 
 
 @router.delete("/{file_id}")
@@ -233,7 +256,7 @@ async def delete_file(
     file = result.scalar_one_or_none()
     
     if not file:
-        raise HTTPException(status_code=404, detail="文件不存在")
+        raise NotFoundException(message="文件不存在", details={"file_id": file_id})
     
     # 删除物理文件
     if file.file_path and os.path.exists(file.file_path):
@@ -243,4 +266,4 @@ async def delete_file(
     await db.delete(file)
     await db.commit()
     
-    return {"message": "删除成功"}
+    return APIResponse.success(message="文件删除成功")

@@ -9,6 +9,15 @@ from slowapi.errors import RateLimitExceeded
 import structlog
 
 from .core import settings, init_db, close_db
+from .core.exceptions import (
+    app_exception_handler,
+    validation_exception_handler,
+    pydantic_validation_handler,
+    sqlalchemy_handler,
+    http_status_error_handler,
+    generic_exception_handler,
+    AppException,
+)
 from .api import api_router
 
 # 配置日志
@@ -79,13 +88,34 @@ app.include_router(api_router, prefix="/api")
 
 
 # 全局异常处理
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"未处理的异常: {exc}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={"status": "error", "message": "服务器内部错误"},
-    )
+from .core.exceptions import (
+    AppException,
+    validation_exception_handler,
+    pydantic_validation_handler,
+    sqlalchemy_handler,
+    http_status_error_handler,
+    generic_exception_handler,
+    RequestValidationError,
+    SQLAlchemyError,
+    HTTPStatusError,
+)
+from pydantic import ValidationError
+
+# 注册自定义异常
+app.add_exception_handler(AppException, app_exception_handler)
+
+# 注册验证异常
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ValidationError, pydantic_validation_handler)
+
+# 注册数据库异常
+app.add_exception_handler(SQLAlchemyError, sqlalchemy_handler)
+
+# 注册外部服务异常
+app.add_exception_handler(HTTPStatusError, http_status_error_handler)
+
+# 注册通用异常（最后兜底）
+app.add_exception_handler(Exception, generic_exception_handler)
 
 
 # 健康检查
