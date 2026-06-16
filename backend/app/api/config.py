@@ -17,7 +17,7 @@ from .auth import get_current_user
 router = APIRouter(prefix="/config", tags=["配置"])
 
 
-@router.get("/models", response_model=List[ModelConfigResponse])
+@router.get("/models")
 async def list_models(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -51,7 +51,7 @@ async def list_models(
     return APIResponse.success(data={"items": response, "total": len(response)})
 
 
-@router.post("/models", response_model=ModelConfigResponse, status_code=201)
+@router.post("/models", status_code=201)
 async def create_model(
     data: ModelConfigCreate,
     current_user: User = Depends(get_current_user),
@@ -102,7 +102,7 @@ async def create_model(
     ).model_dump())
 
 
-@router.put("/models/{model_id}", response_model=ModelConfigResponse)
+@router.put("/models/{model_id}")
 async def update_model(
     model_id: str,
     data: ModelConfigUpdate,
