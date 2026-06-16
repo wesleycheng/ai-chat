@@ -45,13 +45,14 @@ const tocItems = [
   ["01", "项目概述与核心特性"],
   ["02", "系统架构与技术栈"],
   ["03", "功能模块详解"],
-  ["04", "开发时间线与Bug修复"],
-  ["05", "统一异常处理"],
-  ["06", "单元测试体系"],
-  ["07", "测试覆盖率报告"],
-  ["08", "日志系统设计"],
-  ["09", "部署架构与使用指南"],
-  ["10", "未来规划"],
+  ["04", "功能截图展示"],
+  ["05", "开发时间线与Bug修复"],
+  ["06", "统一异常处理"],
+  ["07", "单元测试体系"],
+  ["08", "测试覆盖率报告"],
+  ["09", "日志系统设计"],
+  ["10", "部署架构与使用指南"],
+  ["11", "未来规划"],
 ];
 tocItems.forEach((item, i) => {
   const row = Math.floor(i / 3);
@@ -139,10 +140,43 @@ modules.forEach((m, i) => {
 });
 
 // ========== Slide 6: Bug修复 ==========
+// ========== Slide 6: 功能截图 (NEW) ==========
 let s6 = pres.addSlide();
 s6.background = { color: WHITE };
 s6.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s6.addText("开发时间线与关键Bug修复", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 26, fontFace: "Arial Black", color: WHITE, bold: true });
+s6.addText("05  功能截图展示", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+
+const screenshots = [
+  { path: "images/Chat.png", label: "聊天界面" },
+  { path: "images/Chat with agent.png", label: "Agent 对话" },
+  { path: "images/File management.png", label: "文件管理" },
+  { path: "images/Model config.png", label: "模型配置" },
+  { path: "images/Agent management.png", label: "Agent 管理" },
+  { path: "images/Add agent.png", label: "创建 Agent" },
+];
+const imgW = 2.9, imgH = 1.9, gapX = 0.2, gapY = 0.2;
+const startX = 0.5, startY = 1.1;
+screenshots.forEach((sc, i) => {
+  const col = i % 3;
+  const row = Math.floor(i / 3);
+  const x = startX + col * (imgW + gapX);
+  const y = startY + row * (imgH + gapY + 0.25);
+  try {
+    s6.addImage({ path: sc.path, x, y, w: imgW, h: imgH }, { shadow: makeShadow() });
+    s6.addShape(pres.shapes.RECTANGLE, { x, y: y + imgH, w: imgW, h: 0.22, fill: { color: LIGHT }, line: { color: SECONDARY, width: 0.5 } });
+    s6.addText(sc.label, { x, y: y + imgH, w: imgW, h: 0.22, fontSize: 9, fontFace: "Arial", color: PRIMARY, align: "center", valign: "middle", bold: true });
+  } catch(e) {
+    s6.addShape(pres.shapes.RECTANGLE, { x, y, w: imgW, h: imgH, fill: { color: GRAY_LIGHT }, line: { color: SECONDARY, width: 1, dashType: "dash" } });
+    s6.addText(sc.label + "\\n[图片未找到]", { x, y, w: imgW, h: imgH, fontSize: 10, fontFace: "Arial", color: GRAY, align: "center", valign: "middle" });
+  }
+});
+s6.addText("AI Chat Platform 核心功能界面预览 — 支持多模型对话、Agent 管理、文件上传与解析", { x: 0.5, y: 6.9, w: 9, h: 0.3, fontSize: 9, fontFace: "Arial", color: GRAY, align: "center" });
+
+
+let s7 = pres.addSlide();
+s7.background = { color: WHITE };
+s7.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s7.addText("开发时间线与关键Bug修复", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 26, fontFace: "Arial Black", color: WHITE, bold: true });
 
 const bugs = [
   ["Bug #1", "Authorization 拼写错误", "前端 api.ts 拼写为 Authoriation\n→ 修正为 Authorization", RED],
@@ -153,23 +187,23 @@ const bugs = [
 ];
 bugs.forEach((b, i) => {
   const y = 1.15 + i * 0.85;
-  s6.addShape(pres.shapes.RECTANGLE, { x: 0.5, y, w: 9, h: 0.7, fill: { color: i % 2 === 0 ? GRAY_LIGHT : WHITE } });
-  s6.addShape(pres.shapes.RECTANGLE, { x: 0.5, y, w: 0.06, h: 0.7, fill: { color: b[3] } });
-  s6.addText(b[0], { x: 0.7, y: y + 0.05, w: 0.8, h: 0.3, fontSize: 11, fontFace: "Arial", color: b[3], bold: true });
-  s6.addText(b[1], { x: 1.6, y: y + 0.05, w: 2.8, h: 0.3, fontSize: 11, fontFace: "Arial", color: DARK, bold: true });
-  s6.addText(b[2], { x: 4.5, y: y + 0.05, w: 5, h: 0.6, fontSize: 10, fontFace: "Arial", color: GRAY });
+  s7.addShape(pres.shapes.RECTANGLE, { x: 0.5, y, w: 9, h: 0.7, fill: { color: i % 2 === 0 ? GRAY_LIGHT : WHITE } });
+  s7.addShape(pres.shapes.RECTANGLE, { x: 0.5, y, w: 0.06, h: 0.7, fill: { color: b[3] } });
+  s7.addText(b[0], { x: 0.7, y: y + 0.05, w: 0.8, h: 0.3, fontSize: 11, fontFace: "Arial", color: b[3], bold: true });
+  s7.addText(b[1], { x: 1.6, y: y + 0.05, w: 2.8, h: 0.3, fontSize: 11, fontFace: "Arial", color: DARK, bold: true });
+  s7.addText(b[2], { x: 4.5, y: y + 0.05, w: 5, h: 0.6, fontSize: 10, fontFace: "Arial", color: GRAY });
 });
 
 
 // ========== Slide 7: 统一异常处理 (NEW) ==========
-let s7 = pres.addSlide();
-s7.background = { color: WHITE };
-s7.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s7.addText("05  统一异常处理框架", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+let s8 = pres.addSlide();
+s8.background = { color: WHITE };
+s8.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s8.addText("06  统一异常处理框架", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
 
 // Architecture (left panel)
-s7.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 1.15, w: 4.5, h: 2.6, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
-s7.addText("异常处理架构", { x: 0.7, y: 1.2, w: 4.1, h: 0.35, fontSize: 13, fontFace: "Arial", color: PRIMARY, bold: true });
+s8.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 1.15, w: 4.5, h: 2.6, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
+s8.addText("异常处理架构", { x: 0.7, y: 1.2, w: 4.1, h: 0.35, fontSize: 13, fontFace: "Arial", color: PRIMARY, bold: true });
 const excLayers = [
   { label: "API 路由层", sub: "auth / files / agents / chat / config", y: 1.6 },
   { label: "统一抛出异常", sub: "AppException / NotFoundException 等", y: 2.2 },
@@ -177,14 +211,14 @@ const excLayers = [
   { label: "统一响应格式", sub: "APIResponse.success() / .error()", y: 3.4 },
 ];
 excLayers.forEach(el => {
-  s7.addShape(pres.shapes.RECTANGLE, { x: 0.7, y: el.y, w: 4.1, h: 0.48, fill: { color: WHITE }, line: { color: SECONDARY, width: 1 }, rectRadius: 0.04 });
-  s7.addText(el.label, { x: 0.85, y: el.y + 0.03, w: 1.8, h: 0.42, fontSize: 10, fontFace: "Arial", color: PRIMARY, bold: true });
-  s7.addText(el.sub, { x: 2.7, y: el.y + 0.03, w: 2.0, h: 0.42, fontSize: 9, fontFace: "Arial", color: GRAY });
+  s8.addShape(pres.shapes.RECTANGLE, { x: 0.7, y: el.y, w: 4.1, h: 0.48, fill: { color: WHITE }, line: { color: SECONDARY, width: 1 }, rectRadius: 0.04 });
+  s8.addText(el.label, { x: 0.85, y: el.y + 0.03, w: 1.8, h: 0.42, fontSize: 10, fontFace: "Arial", color: PRIMARY, bold: true });
+  s8.addText(el.sub, { x: 2.7, y: el.y + 0.03, w: 2.0, h: 0.42, fontSize: 9, fontFace: "Arial", color: GRAY });
 });
 
 // Exception classes (right panel)
-s7.addShape(pres.shapes.RECTANGLE, { x: 5.2, y: 1.15, w: 4.3, h: 2.6, fill: { color: WHITE }, shadow: makeShadow(), rectRadius: 0.08 });
-s7.addText("自定义异常类", { x: 5.4, y: 1.2, w: 3.9, h: 0.35, fontSize: 13, fontFace: "Arial", color: PRIMARY, bold: true });
+s8.addShape(pres.shapes.RECTANGLE, { x: 5.2, y: 1.15, w: 4.3, h: 2.6, fill: { color: WHITE }, shadow: makeShadow(), rectRadius: 0.08 });
+s8.addText("自定义异常类", { x: 5.4, y: 1.2, w: 3.9, h: 0.35, fontSize: 13, fontFace: "Arial", color: PRIMARY, bold: true });
 const excClasses = [
   ["AppException", "基础异常（含 code/message）", RED],
   ["NotFoundException", "资源不存在（404）", AMBER],
@@ -198,16 +232,16 @@ excClasses.forEach((ec, i) => {
   const row = Math.floor(i / 2);
   const x = 5.4 + col * 2.1;
   const y = 1.6 + row * 0.7;
-  s7.addShape(pres.shapes.RECTANGLE, { x, y, w: 1.95, h: 0.6, fill: { color: GRAY_LIGHT }, rectRadius: 0.04 });
-  s7.addShape(pres.shapes.RECTANGLE, { x, y, w: 1.95, h: 0.05, fill: { color: ec[2] } });
-  s7.addText(ec[0], { x: x + 0.08, y: y + 0.08, w: 1.8, h: 0.25, fontSize: 10, fontFace: "Consolas", color: ec[2], bold: true });
-  s7.addText(ec[1], { x: x + 0.08, y: y + 0.32, w: 1.8, h: 0.22, fontSize: 8, fontFace: "Arial", color: GRAY });
+  s8.addShape(pres.shapes.RECTANGLE, { x, y, w: 1.95, h: 0.6, fill: { color: GRAY_LIGHT }, rectRadius: 0.04 });
+  s8.addShape(pres.shapes.RECTANGLE, { x, y, w: 1.95, h: 0.05, fill: { color: ec[2] } });
+  s8.addText(ec[0], { x: x + 0.08, y: y + 0.08, w: 1.8, h: 0.25, fontSize: 10, fontFace: "Consolas", color: ec[2], bold: true });
+  s8.addText(ec[1], { x: x + 0.08, y: y + 0.32, w: 1.8, h: 0.22, fontSize: 8, fontFace: "Arial", color: GRAY });
 });
 
 // Code example
-s7.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.95, w: 9, h: 1.4, fill: { color: "1E293B" }, shadow: makeShadow(), rectRadius: 0.06 });
-s7.addText("APIResponse 统一响应格式", { x: 0.7, y: 4.0, w: 4, h: 0.25, fontSize: 10, fontFace: "Arial", color: "94A3B8", bold: true });
-s7.addText([
+s8.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.95, w: 9, h: 1.4, fill: { color: "1E293B" }, shadow: makeShadow(), rectRadius: 0.06 });
+s8.addText("APIResponse 统一响应格式", { x: 0.7, y: 4.0, w: 4, h: 0.25, fontSize: 10, fontFace: "Arial", color: "94A3B8", bold: true });
+s8.addText([
   { text: "// 成功响应", options: { fontSize: 9, fontFace: "Consolas", color: "94A3B8", breakLine: true } },
   { text: 'return APIResponse.success(data={"id": "xxx", "name": "DeepSeek"})', options: { fontSize: 9, fontFace: "Consolas", color: GREEN, breakLine: true } },
   { text: "", options: { breakLine: true } },
@@ -215,15 +249,15 @@ s7.addText([
   { text: 'raise NotFoundException("模型配置不存在")', options: { fontSize: 9, fontFace: "Consolas", color: RED } },
 ], { x: 0.7, y: 4.3, w: 8.6, h: 0.95 });
 
-let s8 = pres.addSlide();
-s7.background = { color: WHITE };
-s7.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s7.addText("05  单元测试体系", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+let s9 = pres.addSlide();
+s9.background = { color: WHITE };
+s9.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s9.addText("07  单元测试体系", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
 
 // Test framework
-s7.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 1.2, w: 4.3, h: 1.8, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
-s7.addText("测试框架与工具", { x: 0.7, y: 1.3, w: 3.9, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-s7.addText([
+s9.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 1.2, w: 4.3, h: 1.8, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
+s9.addText("测试框架与工具", { x: 0.7, y: 1.3, w: 3.9, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+s9.addText([
   { text: "pytest + pytest-asyncio", options: { bullet: true, fontSize: 11, color: DARK, breakLine: true } },
   { text: "pytest-cov（覆盖率报告）", options: { bullet: true, fontSize: 11, color: DARK, breakLine: true } },
   { text: "httpx（异步HTTP测试）", options: { bullet: true, fontSize: 11, color: DARK, breakLine: true } },
@@ -231,9 +265,9 @@ s7.addText([
 ], { x: 0.7, y: 1.7, w: 3.9, h: 1.2 });
 
 // Test structure
-s7.addShape(pres.shapes.RECTANGLE, { x: 5.2, y: 1.2, w: 4.3, h: 1.8, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
-s7.addText("测试文件结构", { x: 5.4, y: 1.3, w: 3.9, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-s7.addText([
+s9.addShape(pres.shapes.RECTANGLE, { x: 5.2, y: 1.2, w: 4.3, h: 1.8, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
+s9.addText("测试文件结构", { x: 5.4, y: 1.3, w: 3.9, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+s9.addText([
   { text: "tests/", options: { fontSize: 11, color: PRIMARY, bold: true, breakLine: true } },
   { text: "  conftest.py  — 公共 fixtures", options: { fontSize: 10, color: DARK, breakLine: true } },
   { text: "  core/test_security.py  — 安全模块", options: { fontSize: 10, color: DARK, breakLine: true } },
@@ -254,27 +288,27 @@ testGroups.forEach((tg, i) => {
   const row = Math.floor(i / 2);
   const x = 0.5 + col * 4.7;
   const y = 3.3 + row * 1.1;
-  s7.addShape(pres.shapes.RECTANGLE, { x, y, w: 4.5, h: 0.95, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
-  s7.addShape(pres.shapes.RECTANGLE, { x, y, w: 0.06, h: 0.95, fill: { color: tg[2] } });
-  s7.addText(tg[0], { x: x + 0.2, y: y + 0.05, w: 4.1, h: 0.3, fontSize: 11, fontFace: "Arial", color: tg[2], bold: true });
-  s7.addText(tg[1], { x: x + 0.2, y: y + 0.35, w: 4.1, h: 0.55, fontSize: 9, fontFace: "Arial", color: GRAY });
+  s9.addShape(pres.shapes.RECTANGLE, { x, y, w: 4.5, h: 0.95, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+  s9.addShape(pres.shapes.RECTANGLE, { x, y, w: 0.06, h: 0.95, fill: { color: tg[2] } });
+  s9.addText(tg[0], { x: x + 0.2, y: y + 0.05, w: 4.1, h: 0.3, fontSize: 11, fontFace: "Arial", color: tg[2], bold: true });
+  s9.addText(tg[1], { x: x + 0.2, y: y + 0.35, w: 4.1, h: 0.55, fontSize: 9, fontFace: "Arial", color: GRAY });
 });
 
 // ========== Slide 9: 测试覆盖率 (NEW) ==========
-let s9 = pres.addSlide();
-s8.background = { color: WHITE };
-s8.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s8.addText("06  测试覆盖率报告", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+let s10 = pres.addSlide();
+s10.background = { color: WHITE };
+s10.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s10.addText("08  测试覆盖率报告", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
 
 // Big coverage number
-s8.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 1.2, w: 3.5, h: 2.5, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.1 });
-s8.addText("58%", { x: 0.5, y: 1.3, w: 3.5, h: 1.5, fontSize: 64, fontFace: "Arial Black", color: GREEN, align: "center", bold: true });
-s8.addText("当前代码覆盖率", { x: 0.5, y: 2.8, w: 3.5, h: 0.4, fontSize: 14, fontFace: "Arial", color: GRAY, align: "center" });
-s8.addText("目标：80%+", { x: 0.5, y: 3.2, w: 3.5, h: 0.3, fontSize: 12, fontFace: "Arial", color: AMBER, align: "center" });
+s10.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 1.2, w: 3.5, h: 2.5, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.1 });
+s10.addText("58%", { x: 0.5, y: 1.3, w: 3.5, h: 1.5, fontSize: 64, fontFace: "Arial Black", color: GREEN, align: "center", bold: true });
+s10.addText("当前代码覆盖率", { x: 0.5, y: 2.8, w: 3.5, h: 0.4, fontSize: 14, fontFace: "Arial", color: GRAY, align: "center" });
+s10.addText("目标：80%+", { x: 0.5, y: 3.2, w: 3.5, h: 0.3, fontSize: 12, fontFace: "Arial", color: AMBER, align: "center" });
 
 // Coverage breakdown
-s8.addShape(pres.shapes.RECTANGLE, { x: 4.3, y: 1.2, w: 5.2, h: 2.5, fill: { color: WHITE }, shadow: makeShadow(), rectRadius: 0.08 });
-s8.addText("覆盖率配置", { x: 4.5, y: 1.3, w: 4.8, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+s10.addShape(pres.shapes.RECTANGLE, { x: 4.3, y: 1.2, w: 5.2, h: 2.5, fill: { color: WHITE }, shadow: makeShadow(), rectRadius: 0.08 });
+s10.addText("覆盖率配置", { x: 4.5, y: 1.3, w: 4.8, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
 
 const covItems = [
   ["报告格式", "终端 + HTML + XML", "term-missing / htmlcov / coverage.xml"],
@@ -284,20 +318,20 @@ const covItems = [
 ];
 covItems.forEach((ci, i) => {
   const y = 1.8 + i * 0.45;
-  s8.addText(ci[0], { x: 4.5, y, w: 1.5, h: 0.35, fontSize: 10, fontFace: "Arial", color: PRIMARY, bold: true });
-  s8.addText(ci[1], { x: 6.1, y, w: 1.8, h: 0.35, fontSize: 10, fontFace: "Arial", color: DARK });
-  s8.addText(ci[2], { x: 8.0, y, w: 1.5, h: 0.35, fontSize: 9, fontFace: "Arial", color: GRAY });
+  s10.addText(ci[0], { x: 4.5, y, w: 1.5, h: 0.35, fontSize: 10, fontFace: "Arial", color: PRIMARY, bold: true });
+  s10.addText(ci[1], { x: 6.1, y, w: 1.8, h: 0.35, fontSize: 10, fontFace: "Arial", color: DARK });
+  s10.addText(ci[2], { x: 8.0, y, w: 1.5, h: 0.35, fontSize: 9, fontFace: "Arial", color: GRAY });
 });
 
 // Test output example
-s8.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 4.0, w: 9, h: 1.3, fill: { color: "1E293B" }, shadow: makeShadow(), rectRadius: 0.06 });
-s8.addText("pytest --cov=app 输出示例", { x: 0.7, y: 4.05, w: 8.6, h: 0.25, fontSize: 9, fontFace: "Consolas", color: "94A3B8" });
-s8.addText([
+s10.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 4.0, w: 9, h: 1.3, fill: { color: "1E293B" }, shadow: makeShadow(), rectRadius: 0.06 });
+s10.addText("pytest --cov=app 输出示例", { x: 0.7, y: 4.05, w: 8.6, h: 0.25, fontSize: 9, fontFace: "Consolas", color: "94A3B8" });
+s10.addText([
   { text: "tests/core/test_security.py  ", options: { fontSize: 9, fontFace: "Consolas", color: "94A3B8" } },
   { text: "PASSED", options: { fontSize: 9, fontFace: "Consolas", color: GREEN, bold: true } },
   { text: " [100%]", options: { fontSize: 9, fontFace: "Consolas", color: "94A3B8" } },
 ], { x: 0.7, y: 4.35, w: 8.6, h: 0.25 });
-s8.addText([
+s10.addText([
   { text: "---------- coverage: platform darwin ----------", options: { fontSize: 9, fontFace: "Consolas", color: "94A3B8", breakLine: true } },
   { text: "Name                     Stmts   Miss  Cover", options: { fontSize: 9, fontFace: "Consolas", color: "94A3B8", breakLine: true } },
   { text: "app/core/security.py       42      5    ", options: { fontSize: 9, fontFace: "Consolas", color: "94A3B8" } },
@@ -305,10 +339,10 @@ s8.addText([
 ], { x: 0.7, y: 4.6, w: 8.6, h: 0.65 });
 
 // ========== Slide 10: 日志系统 (NEW) ==========
-let s10 = pres.addSlide();
-s9.background = { color: WHITE };
-s9.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s9.addText("07  日志系统设计", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+let s11 = pres.addSlide();
+s11.background = { color: WHITE };
+s11.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s11.addText("09  日志系统设计", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
 
 // Log architecture
 const logChannels = [
@@ -318,22 +352,22 @@ const logChannels = [
 ];
 logChannels.forEach((lc, i) => {
   const x = 0.5 + i * 3.2;
-  s9.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
-  s9.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 0.06, fill: { color: lc[3] } });
-  s9.addText(lc[0], { x: x + 0.15, y: 1.35, w: 2.7, h: 0.35, fontSize: 14, fontFace: "Arial", color: lc[3], bold: true });
-  s9.addText(lc[1], { x: x + 0.15, y: 1.7, w: 2.7, h: 0.3, fontSize: 12, fontFace: "Arial", color: DARK });
-  s9.addText(lc[2], { x: x + 0.15, y: 2.0, w: 2.7, h: 0.7, fontSize: 10, fontFace: "Arial", color: GRAY });
+  s11.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+  s11.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 0.06, fill: { color: lc[3] } });
+  s11.addText(lc[0], { x: x + 0.15, y: 1.35, w: 2.7, h: 0.35, fontSize: 14, fontFace: "Arial", color: lc[3], bold: true });
+  s11.addText(lc[1], { x: x + 0.15, y: 1.7, w: 2.7, h: 0.3, fontSize: 12, fontFace: "Arial", color: DARK });
+  s11.addText(lc[2], { x: x + 0.15, y: 2.0, w: 2.7, h: 0.7, fontSize: 10, fontFace: "Arial", color: GRAY });
 });
 
 // Log format example
-s9.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.2, w: 9, h: 0.5, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.06 });
-s9.addText("日志格式", { x: 0.7, y: 3.25, w: 2, h: 0.4, fontSize: 12, fontFace: "Arial", color: PRIMARY, bold: true });
-s9.addText("2026-06-15 11:30:00 - app.services.chat_service - INFO - [ChatService] 加载文件: report.pdf", { x: 2.7, y: 3.25, w: 6.5, h: 0.4, fontSize: 10, fontFace: "Consolas", color: GRAY });
+s11.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.2, w: 9, h: 0.5, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.06 });
+s11.addText("日志格式", { x: 0.7, y: 3.25, w: 2, h: 0.4, fontSize: 12, fontFace: "Arial", color: PRIMARY, bold: true });
+s11.addText("2026-06-15 11:30:00 - app.services.chat_service - INFO - [ChatService] 加载文件: report.pdf", { x: 2.7, y: 3.25, w: 6.5, h: 0.4, fontSize: 10, fontFace: "Consolas", color: GRAY });
 
 // Log functions
-s9.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.9, w: 4.3, h: 1.4, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
-s9.addText("日志辅助函数", { x: 0.7, y: 3.95, w: 3.9, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-s9.addText([
+s11.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.9, w: 4.3, h: 1.4, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+s11.addText("日志辅助函数", { x: 0.7, y: 3.95, w: 3.9, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+s11.addText([
   { text: "log_request(request, status)", options: { bullet: true, fontSize: 10, fontFace: "Consolas", color: DARK, breakLine: true } },
   { text: "log_error(error_msg, exc_info)", options: { bullet: true, fontSize: 10, fontFace: "Consolas", color: RED, breakLine: true } },
   { text: "log_debug(debug_msg)", options: { bullet: true, fontSize: 10, fontFace: "Consolas", color: GRAY, breakLine: true } },
@@ -341,9 +375,9 @@ s9.addText([
 ], { x: 0.7, y: 4.3, w: 3.9, h: 0.9 });
 
 // Business log examples
-s9.addShape(pres.shapes.RECTANGLE, { x: 5.2, y: 3.9, w: 4.3, h: 1.4, fill: { color: "1E293B" }, shadow: makeShadow(), rectRadius: 0.06 });
-s9.addText("业务日志示例", { x: 5.4, y: 3.95, w: 3.9, h: 0.3, fontSize: 11, fontFace: "Arial", color: "94A3B8", bold: true });
-s9.addText([
+s11.addShape(pres.shapes.RECTANGLE, { x: 5.2, y: 3.9, w: 4.3, h: 1.4, fill: { color: "1E293B" }, shadow: makeShadow(), rectRadius: 0.06 });
+s11.addText("业务日志示例", { x: 5.4, y: 3.95, w: 3.9, h: 0.3, fontSize: 11, fontFace: "Arial", color: "94A3B8", bold: true });
+s11.addText([
   { text: "[Chat] Agent: 代码助手, prompt: 你是...", options: { fontSize: 9, fontFace: "Consolas", color: GREEN, breakLine: true } },
   { text: "[ChatService] 检测到 2 个文件", options: { fontSize: 9, fontFace: "Consolas", color: "38BDF8", breakLine: true } },
   { text: "[FileAPI] 文件上传成功: report.pdf", options: { fontSize: 9, fontFace: "Consolas", color: "FCD34D", breakLine: true } },
@@ -351,10 +385,10 @@ s9.addText([
 ], { x: 5.4, y: 4.3, w: 3.9, h: 0.9 });
 
 // ========== Slide 11: 部署架构 ==========
-let s11 = pres.addSlide();
-s10.background = { color: WHITE };
-s10.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s10.addText("08  部署架构", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+let s12 = pres.addSlide();
+s12.background = { color: WHITE };
+s12.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s12.addText("10  部署架构", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
 
 // Docker services
 const services = [
@@ -364,18 +398,18 @@ const services = [
 ];
 services.forEach((sv, i) => {
   const x = 0.5 + i * 3.2;
-  s10.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 2.0, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
-  s10.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 0.5, fill: { color: sv[4] } });
-  s10.addText(sv[0], { x: x + 0.15, y: 1.25, w: 2.7, h: 0.4, fontSize: 16, fontFace: "Arial", color: WHITE, bold: true });
-  s10.addText(sv[1], { x: x + 0.15, y: 1.8, w: 2.7, h: 0.3, fontSize: 11, fontFace: "Arial", color: DARK });
-  s10.addText(sv[2], { x: x + 0.15, y: 2.1, w: 2.7, h: 0.3, fontSize: 12, fontFace: "Arial", color: sv[4], bold: true });
-  s10.addText(sv[3], { x: x + 0.15, y: 2.4, w: 2.7, h: 0.7, fontSize: 10, fontFace: "Arial", color: GRAY });
+  s12.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 2.0, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+  s12.addShape(pres.shapes.RECTANGLE, { x, y: 1.2, w: 3.0, h: 0.5, fill: { color: sv[4] } });
+  s12.addText(sv[0], { x: x + 0.15, y: 1.25, w: 2.7, h: 0.4, fontSize: 16, fontFace: "Arial", color: WHITE, bold: true });
+  s12.addText(sv[1], { x: x + 0.15, y: 1.8, w: 2.7, h: 0.3, fontSize: 11, fontFace: "Arial", color: DARK });
+  s12.addText(sv[2], { x: x + 0.15, y: 2.1, w: 2.7, h: 0.3, fontSize: 12, fontFace: "Arial", color: sv[4], bold: true });
+  s12.addText(sv[3], { x: x + 0.15, y: 2.4, w: 2.7, h: 0.7, fontSize: 10, fontFace: "Arial", color: GRAY });
 });
 
 // ECS info
-s10.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.5, w: 9, h: 1.8, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
-s10.addText("ECS 部署信息", { x: 0.7, y: 3.6, w: 3, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-s10.addText([
+s12.addShape(pres.shapes.RECTANGLE, { x: 0.5, y: 3.5, w: 9, h: 1.8, fill: { color: LIGHT }, shadow: makeShadow(), rectRadius: 0.08 });
+s12.addText("ECS 部署信息", { x: 0.7, y: 3.6, w: 3, h: 0.35, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+s12.addText([
   { text: "服务器：8.137.103.202 (腾讯云 ECS)", options: { bullet: true, fontSize: 11, color: DARK, breakLine: true } },
   { text: "项目路径：/var/www/ai-chat", options: { bullet: true, fontSize: 11, color: DARK, breakLine: true } },
   { text: "部署方式：Docker Compose + git pull", options: { bullet: true, fontSize: 11, color: DARK, breakLine: true } },
@@ -383,10 +417,10 @@ s10.addText([
 ], { x: 0.7, y: 3.95, w: 8.6, h: 1.2 });
 
 // ========== Slide 12: 未来规划 ==========
-let s12 = pres.addSlide();
-s11.background = { color: WHITE };
-s11.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
-s11.addText("09  未来规划", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
+let s13 = pres.addSlide();
+s13.background = { color: WHITE };
+s13.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.9, fill: { color: PRIMARY } });
+s13.addText("11  未来规划", { x: 0.5, y: 0.15, w: 9, h: 0.6, fontSize: 28, fontFace: "Arial Black", color: WHITE, bold: true });
 
 const plans = [
   ["功能增强", "更多文件格式 / RAG 检索增强\n多模态输入 / 对话分享 / 插件系统"],
@@ -399,20 +433,20 @@ plans.forEach((p, i) => {
   const row = Math.floor(i / 2);
   const x = 0.5 + col * 4.7;
   const y = 1.3 + row * 2.0;
-  s11.addShape(pres.shapes.RECTANGLE, { x, y, w: 4.5, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
-  s11.addShape(pres.shapes.RECTANGLE, { x, y, w: 0.06, h: 1.7, fill: { color: SECONDARY } });
-  s11.addText(p[0], { x: x + 0.2, y: y + 0.15, w: 4.1, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
-  s11.addText(p[1], { x: x + 0.2, y: y + 0.6, w: 4.1, h: 0.9, fontSize: 11, fontFace: "Arial", color: GRAY });
+  s13.addShape(pres.shapes.RECTANGLE, { x, y, w: 4.5, h: 1.7, fill: { color: WHITE }, line: { color: "E2E8F0", width: 1 }, shadow: makeShadow() });
+  s13.addShape(pres.shapes.RECTANGLE, { x, y, w: 0.06, h: 1.7, fill: { color: SECONDARY } });
+  s13.addText(p[0], { x: x + 0.2, y: y + 0.15, w: 4.1, h: 0.4, fontSize: 14, fontFace: "Arial", color: PRIMARY, bold: true });
+  s13.addText(p[1], { x: x + 0.2, y: y + 0.6, w: 4.1, h: 0.9, fontSize: 11, fontFace: "Arial", color: GRAY });
 });
 
 // ========== Slide 13: Thank You ==========
-let s13 = pres.addSlide();
-s12.background = { color: DARK };
-s12.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.08, fill: { color: SECONDARY } });
-s12.addShape(pres.shapes.RECTANGLE, { x: 0, y: 5.545, w: 10, h: 0.08, fill: { color: SECONDARY } });
-s12.addText("Thank You", { x: 0.8, y: 1.5, w: 8.4, h: 1.2, fontSize: 44, fontFace: "Arial Black", color: WHITE, bold: true, align: "center" });
-s12.addShape(pres.shapes.LINE, { x: 3.5, y: 2.8, w: 3, h: 0, line: { color: SECONDARY, width: 3 } });
-s12.addText([
+let s14 = pres.addSlide();
+s14.background = { color: DARK };
+s14.addShape(pres.shapes.RECTANGLE, { x: 0, y: 0, w: 10, h: 0.08, fill: { color: SECONDARY } });
+s14.addShape(pres.shapes.RECTANGLE, { x: 0, y: 5.545, w: 10, h: 0.08, fill: { color: SECONDARY } });
+s14.addText("Thank You", { x: 0.8, y: 1.5, w: 8.4, h: 1.2, fontSize: 44, fontFace: "Arial Black", color: WHITE, bold: true, align: "center" });
+s14.addShape(pres.shapes.LINE, { x: 3.5, y: 2.8, w: 3, h: 0, line: { color: SECONDARY, width: 3 } });
+s14.addText([
   { text: "AI Chat Platform - 项目文档 v3.0", options: { fontSize: 14, color: "94A3B8", breakLine: true } },
   { text: "GitHub: github.com/wesleycheng/ai-chat", options: { fontSize: 14, color: SECONDARY, breakLine: true } },
   { text: "Live: http://8.137.103.202", options: { fontSize: 14, color: "94A3B8" } },
