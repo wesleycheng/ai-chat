@@ -117,7 +117,7 @@ export default function ChatPage() {
       agent_id: selectedAgentId || undefined,
     }),
     onSuccess: (data) => {
-      setCurrentConversation(data.data.id)
+      setCurrentConversation(data.data.data.id)
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
     },
   })
