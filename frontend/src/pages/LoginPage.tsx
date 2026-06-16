@@ -26,7 +26,7 @@ export default function LoginPage() {
         response = await authApi.register({ username, email, password })
       }
 
-      const { access_token, refresh_token, user } = response.data
+      const { access_token, refresh_token, user } = response.data.data
       setAuth(access_token, refresh_token, user)
       navigate('/')
     } catch (err: any) {
