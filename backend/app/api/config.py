@@ -11,6 +11,7 @@ from ..schemas import (
     ModelConfigCreate, ModelConfigUpdate, ModelConfigResponse,
     SuccessResponse, ErrorResponse
 )
+from ..core.exceptions import APIResponse
 from .auth import get_current_user
 
 router = APIRouter(prefix="/config", tags=["配置"])
@@ -47,7 +48,7 @@ async def list_models(
             created_at=model.created_at,
         ))
 
-    return response
+    return APIResponse.success(data={"items": response, "total": len(response)})
 
 
 @router.post("/models", response_model=ModelConfigResponse, status_code=201)
@@ -86,7 +87,7 @@ async def create_model(
     await db.refresh(model)
 
     from ..core.security import decrypt_api_key
-    return ModelConfigResponse(
+    return APIResponse.success(data=ModelConfigResponse(
         id=model.id,
         user_id=model.user_id,
         name=model.name,
@@ -98,7 +99,7 @@ async def create_model(
         is_default=model.is_default,
         is_active=model.is_active,
         created_at=model.created_at,
-    )
+    ).model_dump())
 
 
 @router.put("/models/{model_id}", response_model=ModelConfigResponse)
@@ -149,7 +150,7 @@ async def update_model(
     await db.commit()
     await db.refresh(model)
 
-    return ModelConfigResponse(
+    return APIResponse.success(data=ModelConfigResponse(
         id=model.id,
         user_id=model.user_id,
         name=model.name,
@@ -161,7 +162,7 @@ async def update_model(
         is_default=model.is_default,
         is_active=model.is_active,
         created_at=model.created_at,
-    )
+    ).model_dump())
 
 
 @router.delete("/models/{model_id}", status_code=204)
@@ -183,6 +184,7 @@ async def delete_model(
 
     await db.delete(model)
     await db.commit()
+    return APIResponse.success(message="删除成功")
 
 
 @router.post("/models/{model_id}/test")
@@ -216,7 +218,7 @@ async def test_model(
         # 发送测试请求
         response = await llm.ainvoke("Hi")
 
-        return {"status": "ok", "message": "连接成功"}
+        return APIResponse.success(data={"status": "ok", "message": "连接成功"})
 
     except Exception as e:
-        return {"status": "error", "message": f"连接失败: {str(e)}"}
+        return APIResponse.error(message=f"连接失败: {str(e)}")
